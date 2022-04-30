@@ -47,8 +47,43 @@ ENDFOREACH ()
 # Import Third-party library libfdt
 SET(SRCS ${ASM_SRCS} ${C_SRCS})
 
+# Test Proc Load
+ADD_EXECUTABLE(prog1.elf ktest/prog1.c)
+ADD_EXECUTABLE(prog2.elf ktest/prog2.c)
+ADD_EXECUTABLE(prog3.elf ktest/prog3.c)
+SET(TEST_CFLAG "-Wall -Werror -O -fno-omit-frame-pointer "
+        "-ggdb -g -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib "
+        "-mno-relax -fno-stack-protector")
+SET(TEST_LDFLAG "-z max-page-size=4096 -N -e main -Ttext 0")
+STRING(REPLACE " " ";" TEST_CFLAG ${TEST_CFLAG})
+STRING(REPLACE " " ";" TEST_LDFLAG ${TEST_LDFLAG})
+
+TARGET_COMPILE_OPTIONS(prog1.elf PRIVATE ${TEST_CFLAG})
+TARGET_LINK_OPTIONS(prog1.elf PRIVATE ${TEST_LDFLAG})
+TARGET_COMPILE_OPTIONS(prog2.elf PRIVATE ${TEST_CFLAG})
+TARGET_LINK_OPTIONS(prog2.elf PRIVATE ${TEST_LDFLAG})
+TARGET_COMPILE_OPTIONS(prog3.elf PRIVATE ${TEST_CFLAG})
+TARGET_LINK_OPTIONS(prog3.elf PRIVATE ${TEST_LDFLAG})
+
+ADD_CUSTOM_TARGET(prog1.bin COMMAND ${CMAKE_OBJCOPY} -S -O binary ${CMAKE_BINARY_DIR}/prog1.elf ${CMAKE_BINARY_DIR}/prog1.bin)
+ADD_CUSTOM_TARGET(prog2.bin COMMAND ${CMAKE_OBJCOPY} -S -O binary ${CMAKE_BINARY_DIR}/prog2.elf ${CMAKE_BINARY_DIR}/prog2.bin)
+ADD_CUSTOM_TARGET(prog3.bin COMMAND ${CMAKE_OBJCOPY} -S -O binary ${CMAKE_BINARY_DIR}/prog3.elf ${CMAKE_BINARY_DIR}/prog3.bin)
+ADD_DEPENDENCIES(prog1.bin prog1.elf)
+ADD_DEPENDENCIES(prog2.bin prog2.elf)
+ADD_DEPENDENCIES(prog3.bin prog3.elf)
+
+ADD_LIBRARY(test OBJECT ktest/package.S)
+SET_SOURCE_FILES_PROPERTIES(ktest/package.S PROPERTIES LANGUAGE ASM)
+TARGET_COMPILE_DEFINITIONS(test PRIVATE PROG1="${CMAKE_BINARY_DIR}/prog1.bin" PROG2="${CMAKE_BINARY_DIR}/prog2.bin" PROG3="${CMAKE_BINARY_DIR}/prog3.bin")
+ADD_DEPENDENCIES(test prog1.bin prog2.bin prog3.bin)
+# End of test
+
 # Generate kernel.elf
 ADD_EXECUTABLE(kernel.elf ${SRCS})
 TARGET_INCLUDE_DIRECTORIES(kernel.elf PRIVATE "kernel/header")
-SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel.ld")
+SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel.ld ")
+TARGET_LINK_LIBRARIES(kernel.elf test)
+ADD_CUSTOM_COMMAND(TARGET kernel.elf
+        POST_BUILD
+        COMMAND ${CMAKE_OBJDUMP} -S ${CMAKE_BINARY_DIR}/kernel.elf > ${CMAKE_BINARY_DIR}/kernel.disasm)
 # End of kernel.elf

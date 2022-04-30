@@ -7,11 +7,13 @@
 struct memory_info_t memory_info;
 
 // kmem.c
-extern void init_memory_pool(size_t pool_size);
+extern void attach_to_memory_pool(char *mem, size_t sz);
 // paging.c
 extern void init_paging(void *init_start, void *init_end);
 
 void init_memory() {
+    spinlock_init(&memory_info.lock);
+    spinlock_acquire(&memory_info.lock);
     kprintf("[MEM] Init memory From 0x%lx - 0x%lx\n", memory_info.memory_start,
             memory_info.memory_end);
     size_t pg_count =
@@ -48,6 +50,7 @@ void init_memory() {
         memory_info.free_list[i + 1]  = (block_list *)NULL;
         memory_info.free_count[i + 1] = 0;
     }
+#if 0
     void *pg            = NULL;
     int   current_order = MAX_BUDDY_ORDER;
     for (pg = memory_info.usable_memory_start;
@@ -77,6 +80,22 @@ void init_memory() {
         memory_info.free_count[current_order - 1]++;
         pg += current_size;
     }
+#else
+    char *pg = NULL;
+    for (pg = memory_info.usable_memory_start;
+         pg < memory_info.usable_memory_end - max_block_size;
+         pg += max_block_size) {
+        block_list *current = (block_list *)pg;
+        current->next       = memory_info.free_list[MAX_BUDDY_ORDER - 1];
+        current->prev       = NULL;
+        if (current->next)
+            current->next->prev = current;
+        memory_info.free_list[MAX_BUDDY_ORDER - 1] = current;
+        memory_info.free_count[MAX_BUDDY_ORDER - 1]++;
+    }
+    kprintf("[MEM] Waste: %ld Kbytes.\n",
+            (memory_info.usable_memory_end - (pg - max_block_size)) / 1024);
+#endif
     for (size_t i = 0; i < pg_count; i++) {
         if (GET_PAGE_BY_ID(memory_info, i) < memory_info.usable_memory_end)
             memory_info.pages_info[i].type = PAGE_TYPE_FREE | PAGE_TYPE_USABLE;
@@ -84,7 +103,11 @@ void init_memory() {
             memory_info.pages_info[i].type = PAGE_TYPE_INUSE | PAGE_TYPE_SYSTEM;
     }
     kprintf("[MEM] Finish Initialization.\n");
-    init_memory_pool(PG_SIZE * 1024); // Init size 4MB memory_pool
+    // TODO: init memory pool with wasted memory
+    spinlock_release(&memory_info.lock);
+    char  *pool_addr = (char *)PG_ROUNDUP(pg);
+    size_t pool_sz   = memory_info.usable_memory_end - pool_addr;
+    attach_to_memory_pool(pool_addr, pool_sz);
 
     kprintf("[MEM] Setup SV39 MMU. In position mapping for kernel.\n");
     init_paging(memory_info.memory_start, memory_info.memory_end);
@@ -162,8 +185,8 @@ static int memory_fdt_prober(uint32_t version, const char *node_name,
                     memory_info.memory_start = (void *)mem_addr;
                     memory_info.memory_end =
                         (void *)((char *)mem_addr + mem_size);
-                    if (memory_info.memory_end >= KERN_END &&
-                        memory_info.memory_start <= (void *)KERN_BASE) {
+                    if (memory_info.memory_end >= (char *)KERN_END &&
+                        memory_info.memory_start <= (char *)KERN_BASE) {
                         memory_info.usable_memory_start =
                             (void *)ROUNDUP_WITH(PG_SIZE, KERN_END);
                         discoverd = 1;

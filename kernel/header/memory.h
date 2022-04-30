@@ -7,6 +7,7 @@
 
 #include <common/types.h>
 #include <lib/bitset.h>
+#include <lib/sys/spinlock.h>
 
 #define PAGING_MODE_BARE 0
 #define PAGING_MODE_SV32 1
@@ -42,8 +43,8 @@ typedef union {
 
 #define PG_SIZE         4096
 #define PG_SHIFT        12
-#define PG_ROUNDUP(sz)  (((sz) + PG_SIZE - 1) & ~(PG_SIZE - 1))
-#define PG_ROUNDDOWN(a) (((a)) & ~(PG_SIZE - 1))
+#define PG_ROUNDUP(sz)  ((((uintptr_t)sz) + PG_SIZE - 1) & ~(PG_SIZE - 1))
+#define PG_ROUNDDOWN(a) ((((uintptr_t)a)) & ~(PG_SIZE - 1))
 
 #define PAGE_TYPE_USABLE   0x001
 #define PAGE_TYPE_RESERVED 0x002
@@ -71,23 +72,26 @@ struct _block_list {
 typedef struct _block_list block_list;
 
 struct memory_info_t {
-#define MAX_BUDDY_ORDER 11 // max block is 4MB
-    void  *memory_start;
-    void  *memory_end;
-    void  *usable_memory_start;
-    void  *usable_memory_end; // Buddy map located on the end of memory
+//#define MAX_BUDDY_ORDER 11 // max block is 4MB
+#define MAX_BUDDY_ORDER 9 // max block is 1MB
+    char  *memory_start;
+    char  *memory_end;
+    char  *usable_memory_start;
+    char  *usable_memory_end; // Buddy map located on the end of memory
     size_t page_count;
 
     bitset *buddy_map[MAX_BUDDY_ORDER]; // Bitmap for each order of buddy
     struct page_info *pages_info;
     block_list       *free_list[MAX_BUDDY_ORDER];
     size_t            free_count[MAX_BUDDY_ORDER];
+
+    spinlock_t lock;
 };
 
 #define GET_PAGE_BY_ID(mem, id)                                                \
-    ((void *)(((mem).memory_start + ((id)*PG_SIZE))))
+    ((char *)(((mem).memory_start + ((id)*PG_SIZE))))
 #define GET_ID_BY_PAGE(mem, page)                                              \
-    (((void *)(page) - ((mem).memory_start)) / PG_SIZE)
+    (((char *)(page) - ((mem).memory_start)) / PG_SIZE)
 
 void   init_memory();
 size_t memory_available();
@@ -95,7 +99,11 @@ size_t memory_available();
 char *page_alloc(size_t pages, int attr);
 int   page_free(char *p, size_t pages);
 
-void  kfree(void *p);
+void  kfree(char *p);
 char *kmalloc(size_t size);
+
+void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free);
+int  map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
+               bool user, bool global);
 
 #endif // __MEMORY_H__

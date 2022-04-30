@@ -6,23 +6,13 @@
 #include <lib/string.h>
 #include <lib/sys/fdt.h>
 #include <memory.h>
+#include <proc.h>
 #include <riscv.h>
 #include <trap.h>
 
 _Static_assert(sizeof(void *) == sizeof(uint64_t), "Target must be 64bit.");
 
 env_t env;
-
-void test() {
-    volatile int i = 0;
-    i++;
-    i++;
-    i++;
-    i--;
-    i++;
-    while (1)
-        ;
-}
 
 volatile static int started = 0;
 
@@ -31,6 +21,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
     if (cpuid() == 0) {
         memset(&env, 0, sizeof(env));
         spinlock_init(&env.ticks_lock);
+        spinlock_init(&env.proc_lock);
         // Todo: init_console should use DTB resource instead SBI fucntion
         init_console();
         init_trap();
@@ -47,27 +38,10 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         init_fdt(fdt_addr);
         init_memory();
 
-        // test proc
-        if (cpuid() == 0) {
-            pde_t root_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
-            memset(root_pagedir, 0, PG_SIZE);
-            pte_st *p               = (pte_st *)&root_pagedir[2];
-            p->fields.V             = 1;
-            p->fields.PhyPageNumber = 0x80000000 >> PG_SHIFT;
-            p->fields.Type          = PTE_TYPE_RWX;
-            p->fields.G             = 0;
-            p->fields.U             = 1;
+        proc_t *p1 = proc_alloc();
+        proc_t *p2 = proc_alloc();
+        proc_t *p3 = proc_alloc();
 
-            env.proc[0].page_dir     = root_pagedir;
-            env.proc[0].kernel_stack = page_alloc(1, PAGE_TYPE_INUSE);
-            env.proc[0].kernel_sp    = env.proc[0].kernel_stack + PG_SIZE;
-            env.proc[0].kernel_cpuid = cpuid();
-            env.proc[0].user_pc      = (uint64_t)test;
-            char *pg                 = page_alloc(1, PAGE_TYPE_INUSE);
-            env.proc[0].trapframe.sp = pg + PG_SIZE;
-            CSR_Write(sepc, env.proc[0].user_pc);
-            user_ret(env.proc);
-        }
         started = 1;
     } else {
         // Salve cores
@@ -77,7 +51,11 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
     }
     //    SBI_shutdown();
     while (1) {
+        char *p = kmalloc(100);
+        kprintf("Allocated: 0x%lx\n", p);
+        kprintf("%d(%d).", cpuid(), env.ticks);
+        kprintf("Freeing: 0x%lx\n", p);
+        kfree(p);
         asm volatile("wfi");
-        //        kprintf("%d(%d).", cpuid(), env.ticks);
     }
 }

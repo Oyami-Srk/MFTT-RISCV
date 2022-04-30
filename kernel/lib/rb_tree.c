@@ -2,8 +2,8 @@
 #include <lib/stdlib.h>
 #include <lib/string.h>
 
-#define PARENT_MASK 0xFFFFFFFFFFFFFFFCl
-#define COLOR_MASK  0x3l
+#define PARENT_MASK 0xFFFFFFFFFFFFFFFEl
+#define COLOR_MASK  0x1l
 
 #define GET_PARENT(n)                                                          \
     ((struct _rb_node *)(((struct _rb_node *)n)->parent_and_color &            \
@@ -132,7 +132,7 @@ void rb_insert_fixup(rb_tree *t, rb_node *n) {
     }
 }
 
-int rb_insert(rb_tree *t, rb_node *n) {
+rb_node *rb_insert(rb_tree *t, rb_node *n) {
     SET_COLOR(n, RB_RED);
     /* insert like BST */
     rb_node *x = t->root;
@@ -141,7 +141,7 @@ int rb_insert(rb_tree *t, rb_node *n) {
     else
         while (x != NULL) {
             if (x->key == n->key)
-                return 1; // key already exists
+                return x; // key already exists
             else if (x->key > n->key) {
                 if (x->L == NULL) {
                     x->L = n;
@@ -160,7 +160,7 @@ int rb_insert(rb_tree *t, rb_node *n) {
     /* END insert like BST */
     rb_insert_fixup(t, n);
     SET_COLOR(t->root, RB_BLACK); // root is always black
-    return 0;
+    return NULL;
 }
 
 rb_node *rb_succ(rb_node *n) {
@@ -293,4 +293,29 @@ void rb_remove(rb_tree *t, rb_node *n) {
     }
     if (color == RB_BLACK)
         rb_remove_fixup(t, child, r);
+}
+
+void rb_replace(rb_tree *tree, rb_node *old, rb_node *new) {
+    assert(old->key == new->key, "Only nodes with same key could be replace.");
+    int      color  = GET_COLOR(old);
+    rb_node *parent = GET_PARENT(old);
+    if (old->L) {
+        new->L = old->L;
+        SET_PARENT(new->L, new);
+    }
+    if (old->R) {
+        new->R = old->R;
+        SET_PARENT(new->R, new);
+    }
+    if (parent) {
+        if (parent->L == old) {
+            parent->L = new;
+        } else if (parent->R == old) {
+            parent->R = new;
+        } else {
+            kpanic("Parent set but no child is us.");
+        }
+        SET_PARENT(new, parent);
+    }
+    SET_COLOR(new, color);
 }

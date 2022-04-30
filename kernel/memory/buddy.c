@@ -9,7 +9,8 @@ extern struct memory_info_t memory_info; // in memory.c
 static block_list *remove_from_free_list(block_list *p, int order) {
     if (p->prev) {
         p->prev->next = p->next;
-        p->next->prev = p->prev;
+        if (p->next)
+            p->next->prev = p->prev;
     } else {
         if (memory_info.free_list[order] != p)
             kpanic("Block has no prev but not the first.");
@@ -32,8 +33,8 @@ static block_list *attach_to_free_list(block_list *p, int order) {
     return p;
 }
 
-static inline int xor_buddy_map(void *p, int order) {
-    size_t page_idx = (p - memory_info.memory_start) / PG_SIZE;
+static inline int xor_buddy_map(char *p, int order) {
+    size_t page_idx = (p - memory_info.usable_memory_start) / PG_SIZE;
     xor_bit(memory_info.buddy_map[order], page_idx >> (order + 1), 1);
     return check_bit(memory_info.buddy_map[order], page_idx >> (order + 1));
 }
@@ -71,13 +72,13 @@ static char *allocate_pages_of_power_2(int order, int attr) {
 static int free_pages_of_power_2(char *p, int order) {
     if (p == NULL)
         return 1; // free a NULL block
-    if (!((void *)p >= memory_info.memory_start &&
-          (void *)p <= memory_info.usable_memory_end))
+    if (!(p >= memory_info.usable_memory_start &&
+          p <= memory_info.usable_memory_end))
         return 2; // free a block not managed by us
     int buddy_bit = xor_buddy_map(p, order);
     if (buddy_bit == 0 && order + 1 < MAX_BUDDY_ORDER) {
         char  *buddy    = NULL;
-        size_t page_idx = ((void *)p - memory_info.memory_start) / PG_SIZE;
+        size_t page_idx = (p - memory_info.usable_memory_start) / PG_SIZE;
         size_t buddy_even_page_idx = (page_idx >> (order + 1)) << (order + 1);
         if (page_idx == buddy_even_page_idx)
             buddy = p + (1 << order) * PG_SIZE;
@@ -113,10 +114,16 @@ void print_free_info() {
 }
 
 char *page_alloc(size_t pages, int attr) {
-    return allocate_pages_of_power_2(trailing_zero(round_up_power_2(pages)),
-                                     attr);
+    int order = trailing_zero(round_up_power_2(pages));
+    spinlock_acquire(&memory_info.lock);
+    char *r = allocate_pages_of_power_2(order, attr);
+    spinlock_release(&memory_info.lock);
+    return r;
 }
 int page_free(char *p, size_t pages) {
-    return free_pages_of_power_2((char *)p,
-                                 trailing_zero(round_up_power_2(pages)));
+    spinlock_acquire(&memory_info.lock);
+    int r = free_pages_of_power_2((char *)p,
+                                  trailing_zero(round_up_power_2(pages)));
+    spinlock_release(&memory_info.lock);
+    return r;
 }

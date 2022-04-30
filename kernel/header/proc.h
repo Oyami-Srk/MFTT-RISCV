@@ -6,6 +6,7 @@
 #define __PROC_H__
 
 #include <common/types.h>
+#include <lib/sys/spinlock.h>
 #include <memory.h>
 
 typedef uint32_t pid_t;
@@ -47,6 +48,7 @@ struct trap_context {
 
 // Only Callee saved ones
 struct task_context {
+    uint64_t ra; // 这个变量用来切换语境
     uint64_t sp;
     uint64_t s0;
     uint64_t s1;
@@ -61,6 +63,23 @@ struct task_context {
     uint64_t s10;
     uint64_t s11;
 };
+
+#define PROC_STATUS_SUSPEND 0x0000
+#define PROC_STATUS_RUNNING 0x0001
+#define PROC_STATUS_READY   0x0002
+#define PROC_STATUS_GOTINT  0x0004
+#define PROC_STATUS_GOTEXC  0x0008
+#define PROC_STATUS_NORMAL  0x0010
+#define PROC_STATUS_STOP    0x0020
+#define PROC_STATUS_ERROR   0x0040
+#define PROC_STATUS_TRACING 0x0080
+#define PROC_STATUS_WAITING 0x0100
+#define PROC_STATUS_HANGING 0x0200
+
+#define PROC_ANY       0xFFFFFFFE
+#define PROC_INTERRUPT 0xFFFFFFFF
+
+#define PROC_STACK_SIZE 8192
 
 struct __proc_t {
     /* 0 ~ 24 */
@@ -78,10 +97,14 @@ struct __proc_t {
     struct __proc_t *parent;
     void            *kernel_stack;
     uint64_t         exit_status;
+    spinlock_t       lock;
     // TODO: Elf program infos
-} __attribute__((packed));
+} __attribute__((aligned(16)));
 
 typedef struct __proc_t proc_t;
+
+proc_t *proc_alloc();
+void    proc_free(proc_t *proc);
 
 /* Note:
  *

@@ -127,22 +127,4 @@ void init_paging(void *init_start, void *init_end) {
         ((uint64_t)root_pagedir / PG_SIZE) | ((uint64_t)PAGING_MODE_SV39 << 60);
     CSR_Write(satp, satp);
     flush_tlb_all();
-    volatile int i = 100;
-    i++;
-    kprintf("%d.", i);
-    kprintf("Mapped.\n");
-    // test
-    char *pg1 = page_alloc(1, PAGE_TYPE_INUSE);
-    char *pg2 = page_alloc(1, PAGE_TYPE_INUSE);
-    strcpy(pg1, "Hello");
-    strcpy(pg2, "World");
-    void *target = 0x0;
-    map_pages(root_pagedir, target, pg1, PG_SIZE, PTE_TYPE_RW, false, false);
-    flush_tlb_all();
-    kprintf("Result1: %s.\n", target);
-    unmap_pages(root_pagedir, target, 1, 0);
-    map_pages(root_pagedir, target, pg2, PG_SIZE, PTE_TYPE_RW, false, false);
-    flush_tlb_all();
-    kprintf("Result2: %s.\n", target);
-    kprintf("Left KBytes: %ld.\n", memory_available() / 1024);
 }

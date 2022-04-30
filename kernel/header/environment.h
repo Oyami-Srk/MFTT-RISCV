@@ -31,10 +31,12 @@ struct __env_t {
     pde_t kernel_pagedir;
     /* Process */
     // TODO: make process table dynamicly allocated and increase.
+    // proc_t *proc[MAX_PROC];
     proc_t proc[MAX_PROC];
     size_t proc_count;
     bitset
         proc_bitmap[MAX_PROC / BITS_PER_BITSET]; // for fast finding empty slot
+    spinlock_t proc_lock;
 } __attribute__((aligned(16)));
 typedef struct __env_t env_t;
 

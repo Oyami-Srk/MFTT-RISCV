@@ -12,7 +12,7 @@ extern _Noreturn void kpanic_proto(const char *s_fn, const char *b_fn,
 #define kpanic(str, ...)                                                       \
     kpanic_proto(__FILE__, __BASE_FILE__, __LINE__, str, ##__VA_ARGS__)
 #define assert(exp, message)                                                   \
-    if (!(exp))                                                                \
+    if (unlikely(!(exp)))                                                      \
     kpanic(message "(Assertion \"" #exp "\" failed.)")
 
 #define section_foreach_entry(section_name, type_t, elem)                      \

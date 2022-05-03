@@ -10,8 +10,6 @@
 #include <riscv.h>
 #include <trap.h>
 
-extern void timer_tick(); // timer.c
-
 static void exception_printf(const char *fmt, ...) {
     int     i;
     char    buf[1024];
@@ -52,14 +50,7 @@ void __attribute__((used)) supervisor_trap_handler() {
     uint64_t sstatus = CSR_Read(sstatus);
 
     if (scause & XCAUSE_INT) {
-        int type = scause & 0x7FFFFFFFFFFFFFFF;
-        // caused by interrupt
-        if (type == 5) {
-            // timer interrupt
-            if (cpuid() == 0)
-                timer_tick();
-            SBI_set_timer(cpu_cycle() + 7800000);
-        }
+        handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
     } else {
         // cause by exception
         exception_printf("Exception %d[%d]: %s Caused by code at 0x%lx with "

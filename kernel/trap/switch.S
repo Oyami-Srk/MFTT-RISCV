@@ -1,8 +1,8 @@
 .section .text,"ax"
-.globl switch
+.globl context_switch
 .align 4
 
-switch:
+context_switch:
     sd ra, 0(a0)
     sd sp, 8(a0)
     sd s0, 16(a0)

@@ -1,3 +1,4 @@
+#include "./utils.h"
 #include <common/types.h>
 #include <driver/SBI.h>
 #include <driver/console.h>
@@ -6,18 +7,10 @@
 #include <riscv.h>
 #include <trap.h>
 
-extern void supervisor_interrupt_vector(); // trap.S
-
 void init_trap() {
-    assert((((uint64_t)supervisor_interrupt_vector) & 0x3) == 0,
-           "Interrupt Vector must be 4bytes aligned.");
-    // stvec: Supervisor Trap-Vector Base Address, low two bits are mode.
-    CSR_Write(stvec,
-              ((uint64_t)supervisor_interrupt_vector & (~0x3)) | TRAP_MODE);
+    set_interrupt_to_kernel();
     CSR_RWOR(sie, SIE_SEIE | SIE_SSIE | SIE_STIE);
-    // test timer
     SBI_set_timer(cpu_cycle() + 7800000);
-
     enable_trap();
 }
 

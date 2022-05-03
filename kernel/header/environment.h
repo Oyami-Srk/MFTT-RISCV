@@ -14,9 +14,10 @@
 
 struct __cpu_t {
     // int     cpuid; // This is inside the register tp
-    proc_t *proc;
-    int     trap_off_depth;
-    bool    trap_enabled;
+    proc_t             *proc;
+    int                 trap_off_depth;
+    bool                trap_enabled;
+    struct task_context context;
 };
 typedef struct __cpu_t cpu_t;
 

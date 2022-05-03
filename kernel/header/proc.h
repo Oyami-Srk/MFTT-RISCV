@@ -75,11 +75,14 @@ struct task_context {
 #define PROC_STATUS_TRACING 0x0080
 #define PROC_STATUS_WAITING 0x0100
 #define PROC_STATUS_HANGING 0x0200
+#define PROC_STATUS_DONE    0x0400
 
 #define PROC_ANY       0xFFFFFFFE
 #define PROC_INTERRUPT 0xFFFFFFFF
 
 #define PROC_STACK_SIZE 8192
+
+#define PROC_NAME_SIZE 16
 
 struct __proc_t {
     /* 0 ~ 24 */
@@ -92,13 +95,19 @@ struct __proc_t {
     /* 280 ~ ... */
 
     // Actually Assembly doesn't need anything below
-    pid_t            pid;
-    uint32_t         status;
-    struct __proc_t *parent;
-    void            *kernel_stack;
-    uint64_t         exit_status;
-    spinlock_t       lock;
-    // TODO: Elf program infos
+    pid_t               pid;
+    uint32_t            status;
+    struct __proc_t    *parent;
+    void               *kernel_stack;
+    struct task_context kernel_task_context;
+    uint64_t            exit_status;
+    spinlock_t          lock;
+    char                name[PROC_NAME_SIZE];
+    // Elf program infos
+    size_t prog_size;
+    char  *prog_break;       // in va
+    char  *prog_image_start; // in va
+    char  *prog_brk_pg_end;
 } __attribute__((aligned(16)));
 
 typedef struct __proc_t proc_t;

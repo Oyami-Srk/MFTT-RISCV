@@ -3,6 +3,7 @@
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <proc.h>
+#include <trap.h>
 
 _Static_assert(sizeof(struct trap_context) == sizeof(uint64_t) * 31,
                "Trap context wrong.");
@@ -29,6 +30,7 @@ proc_t *proc_alloc() {
         return NULL;
     }
     proc = &env.proc[pid];
+    env.proc_count++;
     spinlock_init(&proc->lock);
     spinlock_acquire(&proc->lock);
     spinlock_release(&env.proc_lock);
@@ -45,6 +47,10 @@ proc_t *proc_alloc() {
     p->fields.Type          = PTE_TYPE_RWX;
     p->fields.G             = 1;
     p->fields.U             = 0;
+    proc->status            = PROC_STATUS_NORMAL;
+
+    proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
+    proc->kernel_task_context.ra = (uintptr_t)user_trap_return;
     spinlock_release(&proc->lock);
     return proc;
 }

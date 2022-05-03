@@ -105,13 +105,14 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
     }
 }
 
-void init_paging(void *init_start, void *init_end) {
-    kprintf("Left KBytes: %ld.\n", memory_available() / 1024);
-    pde_t root_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
-    memset(root_pagedir, 0, PG_SIZE);
-    size_t init_pg_start = ((uint64_t)init_start) >> 30;
-    size_t init_pg_end   = ((uint64_t)init_end) >> 30;
-    // in position map
+pde_t root_pagedir;
+void  init_paging(void *init_start, void *init_end) {
+     kprintf("Left KBytes: %ld.\n", memory_available() / 1024);
+     root_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
+     memset(root_pagedir, 0, PG_SIZE);
+     size_t init_pg_start = ((uint64_t)init_start) >> 30;
+     size_t init_pg_end   = ((uint64_t)init_end) >> 30;
+     // in position map
 #if FALSE
     map_pages(root_pagedir, init_start, init_start, init_end - init_start,
               PTE_TYPE_RWX, false, true);

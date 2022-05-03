@@ -11,9 +11,9 @@ void init_console() { spinlock_init(&console.lock); }
 
 void kprintf(const char *fmt, ...) {
     spinlock_acquire(&console.lock);
-    int     i;
-    char    buf[MAX_CONSOLE_BUF];
-    va_list arg;
+    int         i;
+    static char buf[MAX_CONSOLE_BUF];
+    va_list     arg;
     va_start(arg, fmt);
     i       = vsprintf(buf, fmt, arg);
     buf[i]  = 0;

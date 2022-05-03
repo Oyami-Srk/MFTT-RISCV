@@ -22,6 +22,10 @@
 #define PTE_TYPE_RSV2     6
 #define PTE_TYPE_RWX      7
 
+#define PTE_TYPE_BIT_R 0b001
+#define PTE_TYPE_BIT_W 0b010
+#define PTE_TYPE_BIT_X 0b100
+
 typedef uint64_t pte_t;
 typedef pte_t   *pde_t;
 typedef union {

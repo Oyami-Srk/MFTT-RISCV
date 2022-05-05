@@ -53,12 +53,12 @@ void __attribute__((used)) supervisor_trap_handler() {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
     } else {
         // cause by exception
-        exception_printf("Exception %d[%d]: %s Caused by code at 0x%lx with "
-                         "stval: 0x%lx.\n",
-                         scause, cpuid(),
-                         scause < 16 ? exception_description[scause]
-                                     : exception_description[4],
-                         sepc, stval);
+        kprintf("Exception %d[%d]: %s Caused by code at 0x%lx with "
+                "stval: 0x%lx.\n",
+                scause, cpuid(),
+                scause < 16 ? exception_description[scause]
+                            : exception_description[4],
+                sepc, stval);
         SBI_shutdown();
         while (1)
             ;

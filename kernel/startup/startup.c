@@ -89,8 +89,8 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         p3->trapframe.sp = 0x80000000;
 
         p1->status |= PROC_STATUS_READY;
-        p2->status |= PROC_STATUS_READY;
-        p3->status |= PROC_STATUS_READY;
+        //        p2->status |= PROC_STATUS_READY;
+        //        p3->status |= PROC_STATUS_READY;
 
         //        user_trap_return(p1);
         started = 1;
@@ -125,10 +125,10 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             // without lock
             assert(myproc() == proc, "Current proc changed.");
         } else {
-            kprintf("Wait for interrupt.\n");
+            kprintf("[%d]Wait for interrupt.\n", cpuid());
             enable_trap();
             asm volatile("wfi");
-            kprintf("Recveivd interrupt.\n");
+            kprintf("[%d]Recveivd interrupt.\n", cpuid());
             ;
         }
     }

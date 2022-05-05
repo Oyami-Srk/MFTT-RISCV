@@ -60,5 +60,6 @@ void return_to_cpu_process() {
     // switch back process context
     proc_t *proc = myproc();
     cpu_t  *cpu  = mycpu();
+    assert(proc, "Process must be valid.");
     context_switch(&mycpu()->context, &mycpu()->proc->kernel_task_context);
 }

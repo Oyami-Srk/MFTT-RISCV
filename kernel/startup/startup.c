@@ -58,28 +58,35 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         kprintf("Prog2 Start: 0x%lx.\n", _prog2_bin_start_);
         kprintf("Prog3 Start: 0x%lx.\n", _prog3_bin_start_);
 
-        char *pg1_code = page_alloc(1, PAGE_TYPE_INUSE);
-        char *pg2_code = page_alloc(1, PAGE_TYPE_INUSE);
-        char *pg3_code = page_alloc(1, PAGE_TYPE_INUSE);
-        memcpy(pg1_code, (char *)_prog1_bin_start_,
-               _prog1_bin_end_ - _prog1_bin_start_);
+        /*
+        typedef size_t (*elf_buffer_reader)(void *reader_data, uint64_t offset,
+                                            char *target, size_t size);
+                                            */
+        // test nested function, this is bad.
+        size_t reader(void *data, uint64_t offset, char *target, size_t size) {
+            memcpy(target, (char *)data + offset, size);
+            return size;
+        }
 
-        memcpy(pg2_code, (char *)_prog2_bin_start_,
-               _prog2_bin_end_ - _prog2_bin_start_);
+        elf_load_to_process(p1, reader, (void *)_prog1_bin_start_);
+        elf_load_to_process(p2, reader, (void *)_prog2_bin_start_);
+        elf_load_to_process(p3, reader, (void *)_prog3_bin_start_);
 
-        memcpy(pg3_code, (char *)_prog3_bin_start_,
-               _prog3_bin_end_ - _prog3_bin_start_);
+        // setup stack
+        char *ps1 = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
+        char *ps2 = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
+        char *ps3 = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
 
-        map_pages(p1->page_dir, 0, pg1_code, PG_SIZE, PTE_TYPE_RWX, true,
-                  false);
-        map_pages(p2->page_dir, 0, pg2_code, PG_SIZE, PTE_TYPE_RWX, true,
-                  false);
-        map_pages(p3->page_dir, 0, pg3_code, PG_SIZE, PTE_TYPE_RWX, true,
-                  false);
+        map_pages(p1->page_dir, (void *)(0x80000000 - PG_SIZE), ps1, PG_SIZE,
+                  PTE_TYPE_RW, true, false);
+        map_pages(p2->page_dir, (void *)(0x80000000 - PG_SIZE), ps2, PG_SIZE,
+                  PTE_TYPE_RW, true, false);
+        map_pages(p3->page_dir, (void *)(0x80000000 - PG_SIZE), ps3, PG_SIZE,
+                  PTE_TYPE_RW, true, false);
 
-        p1->trapframe.sp = (uintptr_t)(PG_SIZE);
-        p2->trapframe.sp = (uintptr_t)(PG_SIZE);
-        p3->trapframe.sp = (uintptr_t)(PG_SIZE);
+        p1->trapframe.sp = 0x80000000;
+        p2->trapframe.sp = 0x80000000;
+        p3->trapframe.sp = 0x80000000;
 
         p1->status |= PROC_STATUS_READY;
         p2->status |= PROC_STATUS_READY;
@@ -94,14 +101,35 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             ;
     }
 
+    // pre-CPU scheduler
     while (1) {
         enable_trap();
-        int result = scheduler();
-        if (result == 1) {
-            kprintf("Wait for interrupt.\n");
-            asm volatile("wfi");
-        } else {
+        proc_t *proc = scheduler(&env.scheduler_data);
+        if (proc) {
+            assert(proc->lock.lock == true, "not holding the lock.");
+            // change pre-CPU status
+            if (mycpu()->proc && mycpu()->proc != proc) {
+                spinlock_acquire(&mycpu()->proc->lock);
+                mycpu()->proc->status &= ~PROC_STATUS_RUNNING;
+                mycpu()->proc->status |= PROC_STATUS_READY;
+                spinlock_release(&mycpu()->proc->lock);
+            }
+            mycpu()->proc = proc;
+            // change status
+            proc->status &= ~PROC_STATUS_READY;
+            proc->status |= PROC_STATUS_RUNNING;
+            // release lock
+            spinlock_release(&proc->lock);
             return_to_cpu_process();
+            // After process invoke yield, they returned here
+            // without lock
+            assert(myproc() == proc, "Current proc changed.");
+        } else {
+            kprintf("Wait for interrupt.\n");
+            enable_trap();
+            asm volatile("wfi");
+            kprintf("Recveivd interrupt.\n");
+            ;
         }
     }
 }

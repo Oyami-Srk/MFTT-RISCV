@@ -8,62 +8,43 @@
 #include <riscv.h>
 #include <scheduler.h>
 
-// Called in interrupt, if there is no process to switch
-// return 1, otherwise return 0
-int scheduler() {
-    int found = 0;
+// 简易的轮换调度实现
+// TODO: More flexable scheduler
+proc_t *scheduler(scheduler_data_t *data) {
+    proc_t *ret_proc = NULL;
 
+    // 锁定进程表
     spinlock_acquire(&env.proc_lock);
-    for (proc_t *proc = env.proc; proc < &env.proc[env.proc_count]; proc++) {
+    // 锁定调度器数据
+    spinlock_acquire(&data->lock);
+
+    for (proc_t *proc = &env.proc[data->last_scheduled_pid + 1];
+         proc < &env.proc[env.proc_count]; proc++) {
         spinlock_acquire(&proc->lock);
         if ((proc->status & (PROC_STATUS_NORMAL | PROC_STATUS_READY)) &&
             (proc->status & PROC_STATUS_RUNNING) == 0) {
-            // Normal ready but not running
-            proc->status &= ~PROC_STATUS_READY;
-            proc->status |= PROC_STATUS_RUNNING;
-            if (mycpu()->proc) {
-                spinlock_acquire(&mycpu()->proc->lock);
-                mycpu()->proc->status &= ~PROC_STATUS_RUNNING;
-                mycpu()->proc->status |= PROC_STATUS_DONE;
-                spinlock_release(&mycpu()->proc->lock);
-            }
-            mycpu()->proc = proc;
-            found         = 1;
-            spinlock_release(&proc->lock);
-            break;
+            // Normal ready but not running, Could be scheduled
+            ret_proc                 = proc; // with lock
+            data->last_scheduled_pid = proc->pid;
+            goto ret;
         }
         spinlock_release(&proc->lock);
     }
-    if (found == 0) {
-        proc_t *p = NULL;
-        for (proc_t *proc = env.proc; proc < &env.proc[env.proc_count];
-             proc++) {
-            // new round
-            if ((proc->status & (PROC_STATUS_NORMAL | PROC_STATUS_DONE))) {
-                spinlock_acquire(&proc->lock);
-                // Normal done but not ready
-                proc->status &= ~PROC_STATUS_DONE;
-                proc->status |= PROC_STATUS_READY;
-                mycpu()->proc = proc;
-                if (p == NULL) {
-                    found = 1;
-                    p     = proc;
-                }
-                spinlock_release(&proc->lock);
-            }
+    for (proc_t *proc = env.proc; proc < &env.proc[data->last_scheduled_pid];
+         proc++) {
+        // next round
+        spinlock_acquire(&proc->lock);
+        if ((proc->status & (PROC_STATUS_NORMAL | PROC_STATUS_READY)) &&
+            (proc->status & PROC_STATUS_RUNNING) == 0) {
+            // Normal ready but not running, Could be scheduled
+            ret_proc                 = proc; // with lock
+            data->last_scheduled_pid = proc->pid;
+            goto ret;
         }
-        if (found) {
-            if (mycpu()->proc) {
-                spinlock_acquire(&mycpu()->proc->lock);
-                mycpu()->proc->status &= ~PROC_STATUS_RUNNING;
-                mycpu()->proc->status |= PROC_STATUS_DONE;
-                spinlock_release(&mycpu()->proc->lock);
-            }
-            mycpu()->proc = p;
-        }
+        spinlock_release(&proc->lock);
     }
+ret:
     spinlock_release(&env.proc_lock);
-    if (found == 0 && mycpu()->proc == NULL)
-        return 1;
-    return 0;
+    spinlock_release(&data->lock);
+    return ret_proc;
 }

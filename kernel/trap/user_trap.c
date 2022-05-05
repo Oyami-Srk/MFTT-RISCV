@@ -58,5 +58,7 @@ void user_trap_return() {
 
 void return_to_cpu_process() {
     // switch back process context
+    proc_t *proc = myproc();
+    cpu_t  *cpu  = mycpu();
     context_switch(&mycpu()->context, &mycpu()->proc->kernel_task_context);
 }

@@ -116,4 +116,6 @@ bool elf_load_to_process(proc_t *proc, elf_buffer_reader reader,
                       P_header.p_memsz, pg_type, true, false);
         }
     }
+    proc->prog_size = proc->prog_break - proc->prog_image_start;
+    proc->user_pc   = (void *)E_header.e_entry;
 }

@@ -56,3 +56,11 @@ proc_t *proc_alloc() {
 }
 
 void proc_free(proc_t *proc) {}
+
+// Return current CPU process.
+proc_t *myproc() {
+    trap_push_off();
+    proc_t *p = mycpu()->proc;
+    trap_pop_off();
+    return p;
+}

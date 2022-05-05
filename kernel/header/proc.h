@@ -103,6 +103,7 @@ struct __proc_t {
     uint64_t            exit_status;
     spinlock_t          lock;
     char                name[PROC_NAME_SIZE];
+    void               *waiting_chan;
     // Elf program infos
     size_t prog_size;
     char  *prog_break;       // in va
@@ -114,6 +115,10 @@ typedef struct __proc_t proc_t;
 
 proc_t *proc_alloc();
 void    proc_free(proc_t *proc);
+proc_t *myproc();
+
+void sleep(void *chan, spinlock_t *lock);
+void wakeup(void *chan);
 
 /* Note:
  *

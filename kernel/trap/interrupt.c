@@ -19,6 +19,12 @@ void handle_interrupt(uint64_t cause) {
         // 2. set next timer.
         SBI_set_timer(cpu_cycle() + 7800000);
         // 3. yield cpu for schelder running
+        spinlock_acquire(&myproc()->lock);
+        if (myproc()->status & PROC_STATUS_RUNNING) {
+            myproc()->status &= ~PROC_STATUS_RUNNING;
+            myproc()->status |= PROC_STATUS_READY;
+        }
+        spinlock_release(&myproc()->lock);
         yield();
     }
 }

@@ -11,6 +11,7 @@
 #include <memory.h>
 #include <proc.h>
 #include <riscv.h>
+#include <scheduler.h>
 
 struct __cpu_t {
     // int     cpuid; // This is inside the register tp
@@ -37,7 +38,8 @@ struct __env_t {
     size_t proc_count;
     bitset
         proc_bitmap[MAX_PROC / BITS_PER_BITSET]; // for fast finding empty slot
-    spinlock_t proc_lock;
+    spinlock_t       proc_lock;
+    scheduler_data_t scheduler_data;
 } __attribute__((aligned(16)));
 typedef struct __env_t env_t;
 

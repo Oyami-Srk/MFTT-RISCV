@@ -1,9 +1,11 @@
 #ifndef __SPINLOCK_H__
 #define __SPINLOCK_H__
 
+#include <common/types.h>
+
 typedef struct __spinlock_t {
-    unsigned int lock;
-    int          cpu;
+    bool lock;
+    int  cpu;
 } spinlock_t;
 
 void spinlock_init(spinlock_t *pLock);

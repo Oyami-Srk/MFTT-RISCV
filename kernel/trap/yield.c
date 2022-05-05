@@ -13,7 +13,4 @@ void switch_to_scheduler() {
     mycpu()->trap_enabled = trap_enabled;
 }
 
-void yield() {
-    proc_t *proc = mycpu()->proc;
-    switch_to_scheduler();
-}
+void yield() { switch_to_scheduler(); }

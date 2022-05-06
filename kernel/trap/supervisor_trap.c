@@ -10,6 +10,8 @@
 #include <riscv.h>
 #include <trap.h>
 
+spinlock_t exception_lock = {.cpu = 0, .lock = 0};
+
 static void exception_printf(const char *fmt, ...) {
     int     i;
     char    buf[1024];
@@ -52,13 +54,19 @@ void __attribute__((used)) supervisor_trap_handler() {
     if (scause & XCAUSE_INT) {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
     } else {
+        spinlock_acquire(&exception_lock);
         // cause by exception
-        kprintf("Exception %d[%d]: %s Caused by code at 0x%lx with "
-                "stval: 0x%lx.\n",
-                scause, cpuid(),
-                scause < 16 ? exception_description[scause]
-                            : exception_description[4],
-                sepc, stval);
+        exception_printf("Exception %d[%d]: %s Caused by code at 0x%lx with "
+                         "stval: 0x%lx.\n",
+                         scause, cpuid(),
+                         scause < 16 ? exception_description[scause]
+                                     : exception_description[4],
+                         sepc, stval);
+        if (myproc()) {
+            proc_t *proc = myproc();
+            exception_printf("In Process: %d.\n", proc->pid);
+        }
+        spinlock_release(&exception_lock);
         SBI_shutdown();
         while (1)
             ;

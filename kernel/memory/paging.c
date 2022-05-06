@@ -105,6 +105,7 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
     }
 }
 
+// TODO: move to environment
 pde_t root_pagedir;
 void  init_paging(void *init_start, void *init_end) {
      kprintf("Left KBytes: %ld.\n", memory_available() / 1024);
@@ -127,5 +128,6 @@ void  init_paging(void *init_start, void *init_end) {
     uint64_t satp =
         ((uint64_t)root_pagedir / PG_SIZE) | ((uint64_t)PAGING_MODE_SV39 << 60);
     CSR_Write(satp, satp);
+    CSR_RWOR(sstatus, SSTATUS_SUM);
     flush_tlb_all();
 }

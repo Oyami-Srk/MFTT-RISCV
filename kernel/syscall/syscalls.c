@@ -18,7 +18,13 @@ sysret_t sys_ticks(struct trap_context *trapframe) {
     return ret;
 }
 
-sysret_t sys_print(struct trap_context *trapframe) {}
+#include <driver/console.h>
+sysret_t sys_print(struct trap_context *trapframe) {
+    char *buffer = (char *)trapframe->a0;
+    assert(buffer, "Print with null buffer.");
+    kprintf("%s", buffer);
+    return 0;
+}
 
 // Syscall table
 static sysret_t (*syscall_table[])(struct trap_context *) = {

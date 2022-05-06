@@ -1,5 +1,6 @@
 #include <environment.h>
 #include <lib/bitset.h>
+#include <lib/elf.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <proc.h>
@@ -8,6 +9,32 @@
 _Static_assert(sizeof(struct trap_context) == sizeof(uint64_t) * 31,
                "Trap context wrong.");
 
+// for elf loader.
+static size_t memory_reader(void *data, uint64_t offset, char *target,
+                            size_t size) {
+    memcpy(target, (char *)data + offset, size);
+    return size;
+}
+
+void setup_init_process() {
+    proc_t *proc = proc_alloc();
+    assert(proc->pid == 1, "Init proc must be pid 1");
+    extern volatile char _init_code_start[];
+    extern volatile char _init_code_end[];
+
+    elf_load_to_process(proc, memory_reader, (void *)_init_code_start);
+
+    // setup stack
+    char *process_stack = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
+
+    map_pages(proc->page_dir, (void *)(PROC_STACK_BASE - PG_SIZE),
+              process_stack, PG_SIZE, PTE_TYPE_RW, true, false);
+
+    proc->trapframe.sp = PROC_STACK_BASE;
+
+    proc->status |= PROC_STATUS_READY;
+}
+
 void init_proc() {
     spinlock_acquire(&env.proc_lock);
     for (uint64_t i = 0; i < MAX_PROC; i++) {
@@ -15,6 +42,9 @@ void init_proc() {
     }
     spinlock_release(&env.proc_lock);
     // Make PID 0 as systask (never return to user space.)
+    proc_alloc();
+    // Setup init process as PID 1
+    setup_init_process();
 }
 
 proc_t *proc_alloc() {

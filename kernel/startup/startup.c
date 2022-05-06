@@ -41,57 +41,6 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         init_fdt(fdt_addr);
         init_memory();
         init_proc();
-
-        /*
-        proc_t *p1 = proc_alloc();
-        proc_t *p2 = proc_alloc();
-        proc_t *p3 = proc_alloc();
-        // manually setup process
-        extern volatile char _prog1_bin_start_[];
-        extern volatile char _prog2_bin_start_[];
-        extern volatile char _prog3_bin_start_[];
-        extern volatile char _prog1_bin_end_[];
-        extern volatile char _prog2_bin_end_[];
-        extern volatile char _prog3_bin_end_[];
-        extern volatile char _prog_code_start_[];
-
-        //        kprintf("Prog code start: 0x%lx.\n", _prog_code_start_);
-        kprintf("Prog1 Start: 0x%lx.\n", _prog1_bin_start_);
-        kprintf("Prog2 Start: 0x%lx.\n", _prog2_bin_start_);
-        kprintf("Prog3 Start: 0x%lx.\n", _prog3_bin_start_);
-
-        typedef size_t (*elf_buffer_reader)(void *reader_data, uint64_t offset,
-                                            char *target, size_t size);
-        // test nested function, this is bad.
-        size_t reader(void *data, uint64_t offset, char *target, size_t size) {
-            memcpy(target, (char *)data + offset, size);
-            return size;
-        }
-
-        elf_load_to_process(p1, reader, (void *)_prog1_bin_start_);
-        elf_load_to_process(p2, reader, (void *)_prog2_bin_start_);
-        elf_load_to_process(p3, reader, (void *)_prog3_bin_start_);
-
-        // setup stack
-        char *ps1 = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
-        char *ps2 = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
-        char *ps3 = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
-
-        map_pages(p1->page_dir, (void *)(0x80000000 - PG_SIZE), ps1, PG_SIZE,
-                  PTE_TYPE_RW, true, false);
-        map_pages(p2->page_dir, (void *)(0x80000000 - PG_SIZE), ps2, PG_SIZE,
-                  PTE_TYPE_RW, true, false);
-        map_pages(p3->page_dir, (void *)(0x80000000 - PG_SIZE), ps3, PG_SIZE,
-                  PTE_TYPE_RW, true, false);
-
-        p1->trapframe.sp = 0x80000000;
-        p2->trapframe.sp = 0x80000000;
-        p3->trapframe.sp = 0x80000000;
-
-        p1->status |= PROC_STATUS_READY;
-        //        p2->status |= PROC_STATUS_READY;
-        //        p3->status |= PROC_STATUS_READY;
-        */
         started = 1;
     } else {
         // Salve cores

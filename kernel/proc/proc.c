@@ -14,6 +14,7 @@ void init_proc() {
         spinlock_init(&env.proc[i].lock);
     }
     spinlock_release(&env.proc_lock);
+    // Make PID 0 as systask (never return to user space.)
 }
 
 proc_t *proc_alloc() {

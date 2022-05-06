@@ -44,45 +44,34 @@ FOREACH (SRC IN ITEMS ${ASM_SRCS})
     SET_SOURCE_FILES_PROPERTIES(${SRC} PROPERTIES COMPILE_DEFINITIONS ASM_FILE)
 ENDFOREACH ()
 
-# Import Third-party library libfdt
 SET(SRCS ${ASM_SRCS} ${C_SRCS})
-
-# Test Proc Load
-ADD_EXECUTABLE(prog1.elf ktest/prog1.c)
-ADD_EXECUTABLE(prog2.elf ktest/prog2.c)
-ADD_EXECUTABLE(prog3.elf ktest/prog3.c)
-SET(TEST_CFLAG "-Wall -Werror -O -fno-omit-frame-pointer "
-        "-ggdb -g -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib "
-        "-mno-relax -fno-stack-protector")
-SET(TEST_LDFLAG "-z max-page-size=4096 -N -e main -Ttext 0")
-STRING(REPLACE " " ";" TEST_CFLAG ${TEST_CFLAG})
-STRING(REPLACE " " ";" TEST_LDFLAG ${TEST_LDFLAG})
-
-TARGET_COMPILE_OPTIONS(prog1.elf PRIVATE ${TEST_CFLAG})
-TARGET_LINK_OPTIONS(prog1.elf PRIVATE ${TEST_LDFLAG})
-TARGET_COMPILE_OPTIONS(prog2.elf PRIVATE ${TEST_CFLAG})
-TARGET_LINK_OPTIONS(prog2.elf PRIVATE ${TEST_LDFLAG})
-TARGET_COMPILE_OPTIONS(prog3.elf PRIVATE ${TEST_CFLAG})
-TARGET_LINK_OPTIONS(prog3.elf PRIVATE ${TEST_LDFLAG})
-
-IF (0)
-    ADD_CUSTOM_COMMAND(TARGET prog1.elf POST_BUILD COMMAND ${CMAKE_OBJCOPY} -S -O binary ${CMAKE_BINARY_DIR}/prog1.elf ${CMAKE_BINARY_DIR}/prog1.bin)
-    ADD_CUSTOM_COMMAND(TARGET prog2.elf POST_BUILD COMMAND ${CMAKE_OBJCOPY} -S -O binary ${CMAKE_BINARY_DIR}/prog2.elf ${CMAKE_BINARY_DIR}/prog2.bin)
-    ADD_CUSTOM_COMMAND(TARGET prog3.elf POST_BUILD COMMAND ${CMAKE_OBJCOPY} -S -O binary ${CMAKE_BINARY_DIR}/prog3.elf ${CMAKE_BINARY_DIR}/prog3.bin)
-ENDIF (0)
-
-ADD_LIBRARY(test OBJECT ktest/package.S)
-SET_SOURCE_FILES_PROPERTIES(ktest/package.S PROPERTIES LANGUAGE ASM)
-TARGET_COMPILE_DEFINITIONS(test PRIVATE PROG1="${CMAKE_BINARY_DIR}/prog1.elf" PROG2="${CMAKE_BINARY_DIR}/prog2.elf" PROG3="${CMAKE_BINARY_DIR}/prog3.elf")
-ADD_DEPENDENCIES(test prog1.elf prog2.elf prog3.elf)
-# End of test
 
 # Generate kernel.elf
 ADD_EXECUTABLE(kernel.elf ${SRCS})
 TARGET_INCLUDE_DIRECTORIES(kernel.elf PRIVATE "kernel/header")
 SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel.ld ")
-TARGET_LINK_LIBRARIES(kernel.elf test)
+TARGET_LINK_LIBRARIES(kernel.elf init_code)
 ADD_CUSTOM_COMMAND(TARGET kernel.elf
         POST_BUILD
         COMMAND ${CMAKE_OBJDUMP} -S ${CMAKE_BINARY_DIR}/kernel.elf > ${CMAKE_BINARY_DIR}/kernel.disasm)
 # End of kernel.elf
+
+# Generate static userlib
+FILE(GLOB_RECURSE ULIB_SRCS "userlib/*.c")
+ADD_LIBRARY(user STATIC ${ULIB_SRCS})
+TARGET_INCLUDE_DIRECTORIES(user PUBLIC "userlib/header")
+# End of userlib
+
+# Init code
+FILE(GLOB_RECURSE INIT_SRCS "init/*.c")
+ADD_EXECUTABLE(init.elf ${INIT_SRCS})
+TARGET_COMPILE_OPTIONS(init.elf PRIVATE -Wall -Werror -O -fno-omit-frame-pointer
+        -ggdb -g -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib
+        -mno-relax -fno-stack-protector)
+TARGET_LINK_OPTIONS(init.elf PRIVATE -z max-page-size=4096 -N -e main -Ttext 0)
+TARGET_LINK_LIBRARIES(init.elf user)
+ADD_LIBRARY(init_code OBJECT init/package.S)
+SET_SOURCE_FILES_PROPERTIES(init/package.S PROPERTIES LANGUAGE ASM)
+TARGET_COMPILE_DEFINITIONS(init_code PRIVATE INIT_ELF="${CMAKE_BINARY_DIR}/init.elf")
+ADD_DEPENDENCIES(init_code init.elf)
+# End of init

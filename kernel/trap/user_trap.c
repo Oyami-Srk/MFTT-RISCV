@@ -9,6 +9,7 @@
 #include <environment.h>
 #include <lib/stdlib.h>
 #include <riscv.h>
+#include <syscall.h>
 #include <trap.h>
 
 // Used in trap.S
@@ -24,8 +25,10 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
         // interrupt
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
     } else if (scause == 8) {
-        // syscall
-        kprintf("Call: %d.\n", proc->trapframe.a0);
+        // do syscall
+        // TODO: maybe a lock here
+        do_syscall(&proc->trapframe);
+        // TODO: Check op type
         proc->user_pc += 4;
     } else {
         // cause by exception

@@ -113,6 +113,8 @@ struct __proc_t {
 
 typedef struct __proc_t proc_t;
 
+void init_proc();
+
 proc_t *proc_alloc();
 void    proc_free(proc_t *proc);
 proc_t *myproc();

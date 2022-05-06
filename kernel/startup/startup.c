@@ -40,7 +40,9 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         // prober函数来进行调用。
         init_fdt(fdt_addr);
         init_memory();
+        init_proc();
 
+        /*
         proc_t *p1 = proc_alloc();
         proc_t *p2 = proc_alloc();
         proc_t *p3 = proc_alloc();
@@ -58,10 +60,8 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         kprintf("Prog2 Start: 0x%lx.\n", _prog2_bin_start_);
         kprintf("Prog3 Start: 0x%lx.\n", _prog3_bin_start_);
 
-        /*
         typedef size_t (*elf_buffer_reader)(void *reader_data, uint64_t offset,
                                             char *target, size_t size);
-                                            */
         // test nested function, this is bad.
         size_t reader(void *data, uint64_t offset, char *target, size_t size) {
             memcpy(target, (char *)data + offset, size);
@@ -91,8 +91,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         p1->status |= PROC_STATUS_READY;
         //        p2->status |= PROC_STATUS_READY;
         //        p3->status |= PROC_STATUS_READY;
-
-        //        user_trap_return(p1);
+        */
         started = 1;
     } else {
         // Salve cores
@@ -101,7 +100,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             ;
     }
 
-    // pre-CPU scheduler
+    // pre-CPU process runner
     while (1) {
         enable_trap();
         proc_t *proc = scheduler(&env.scheduler_data);

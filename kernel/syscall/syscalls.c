@@ -36,6 +36,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
 #include <driver/console.h>
 
 void do_syscall(struct trap_context *trapframe) {
+    CSR_RWOR(sstatus, SSTATUS_SUM);
     int syscall_id = trapframe->a7;
     if (unlikely(syscall_id >= NELEM(syscall_table) ||
                  syscall_table[syscall_id] == NULL)) {
@@ -47,4 +48,5 @@ void do_syscall(struct trap_context *trapframe) {
     }
     // TODO: strace
     trapframe->a0 = syscall_table[syscall_id](trapframe);
+    CSR_RWAND(sstatus, ~SSTATUS_SUM);
 }

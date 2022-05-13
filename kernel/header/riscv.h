@@ -57,7 +57,7 @@ static inline uint64_t cpu_cycle() {
     asm volatile("rdtime %0" : "=r"(x));
     return x;
 }
-
+#include <driver/SBI.h>
 // Enable/Disable trap(interrupt)
 static inline void enable_trap() {
     CSR_Write(sstatus, CSR_Read(sstatus) | SSTATUS_SIE);

@@ -9,9 +9,9 @@
 
 void init_trap() {
     set_interrupt_to_kernel();
+    enable_trap();
     CSR_RWOR(sie, SIE_SEIE | SIE_SSIE | SIE_STIE);
     SBI_set_timer(cpu_cycle() + 7800000);
-    enable_trap();
 }
 
 void trap_push_off() {

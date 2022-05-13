@@ -21,6 +21,7 @@ struct __kmem_pool {
 
 typedef struct __kmem_pool kmem_pool;
 
+// TODO: Smaller the block, glibc is amazing at pool management
 struct __kmem_block {
     uint16_t cookie;
 #define KMEM_COOKIE 0xD1AC

@@ -35,7 +35,7 @@ ENABLE_LANGUAGE(ASM)
 SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fno-stack-protector -g -nostdlib -mcmodel=medany")
 
 PROJECT(MyFirstTouchToRISCV)
-SET(CMAKE_VERBOSE_MAKEFILE ON)
+#SET(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
 FILE(GLOB_RECURSE ASM_SRCS "kernel/*/*.S")
 FILE(GLOB_RECURSE C_SRCS "kernel/*/*.c")
@@ -51,6 +51,7 @@ ADD_EXECUTABLE(kernel.elf ${SRCS})
 TARGET_INCLUDE_DIRECTORIES(kernel.elf PRIVATE "kernel/header")
 SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel.ld ")
 TARGET_LINK_LIBRARIES(kernel.elf init_code)
+ADD_DEPENDENCIES(kernel.elf init_code)
 ADD_CUSTOM_COMMAND(TARGET kernel.elf
         POST_BUILD
         COMMAND ${CMAKE_OBJDUMP} -S ${CMAKE_BINARY_DIR}/kernel.elf > ${CMAKE_BINARY_DIR}/kernel.disasm)
@@ -70,8 +71,10 @@ TARGET_COMPILE_OPTIONS(init.elf PRIVATE -Wall -Werror -O -fno-omit-frame-pointer
         -mno-relax -fno-stack-protector)
 TARGET_LINK_OPTIONS(init.elf PRIVATE -z max-page-size=4096 -N -e main -Ttext 0)
 TARGET_LINK_LIBRARIES(init.elf user)
-ADD_LIBRARY(init_code OBJECT init/package.S)
+
+ADD_LIBRARY(init_code STATIC init/package.S)
 SET_SOURCE_FILES_PROPERTIES(init/package.S PROPERTIES LANGUAGE ASM)
+SET_SOURCE_FILES_PROPERTIES(init/package.S OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/init.elf)
 TARGET_COMPILE_DEFINITIONS(init_code PRIVATE INIT_ELF="${CMAKE_BINARY_DIR}/init.elf")
-ADD_DEPENDENCIES(init_code init.elf)
+
 # End of init

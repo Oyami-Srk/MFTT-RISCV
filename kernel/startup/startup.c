@@ -11,8 +11,6 @@
 #include <scheduler.h>
 #include <trap.h>
 
-#include <lib/elf.h>
-
 _Static_assert(sizeof(void *) == sizeof(uint64_t), "Target must be 64bit.");
 
 env_t env;
@@ -41,6 +39,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         init_fdt(fdt_addr);
         init_memory();
         init_proc();
+
         started = 1;
     } else {
         // Salve cores
@@ -49,12 +48,14 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             ;
     }
 
+    assert(mycpu()->trap_off_depth == 0, "CPU enter scheduler with trap off.");
     // pre-CPU process runner
     while (1) {
         enable_trap();
         proc_t *proc = scheduler(&env.scheduler_data);
         if (proc) {
             assert(proc->lock.lock == true, "not holding the lock.");
+            //            kprintf("CPU %d got PID %d.\n", cpuid(), proc->pid);
             // change pre-CPU status
             if (mycpu()->proc && mycpu()->proc != proc) {
                 spinlock_acquire(&mycpu()->proc->lock);
@@ -73,10 +74,10 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             // without lock
             assert(myproc() == proc, "Current proc changed.");
         } else {
-            kprintf("[%d]Wait for interrupt.\n", cpuid());
+            mycpu()->proc = NULL;
             enable_trap();
             asm volatile("wfi");
-            kprintf("[%d]Recveivd interrupt.\n", cpuid());
+            //            kprintf("[%d]Recveivd interrupt.\n", cpuid());
             ;
         }
     }

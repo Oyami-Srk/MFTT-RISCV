@@ -5,7 +5,7 @@
 #include <smp_barrier.h>
 #include <trap.h>
 
-// #define LINUX_WAY
+#define LINUX_WAY
 
 static bool spinlock_holding(spinlock_t *pLock) {
 #ifdef LINUX_WAY

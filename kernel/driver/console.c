@@ -55,7 +55,7 @@ _Noreturn void kpanic_proto(const char *s_fn, const char *b_fn, const int line,
     print_str(num_buf);
     print_str("\n==================================================\n\n");
     // Panic halt
-    SBI_shutdown();
+    //    SBI_shutdown();
     while (1)
         ;
 }

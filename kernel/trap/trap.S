@@ -40,6 +40,8 @@ supervisor_interrupt_vector:
     sd t5, 232(sp)
     sd t6, 240(sp)
 
+    mv a0, sp
+
     /* Call supervisor trap handler */
     call supervisor_trap_handler
 
@@ -79,6 +81,8 @@ supervisor_interrupt_vector:
     addi sp, sp, 256
 
     sret /* Return */
+
+.align 4
 
 user_interrupt_vector:
     /* 交换a0和sscratch，sscratch里面存放进程的结构体指针 */

@@ -46,9 +46,10 @@ void user_trap_return() {
     proc_t *proc = mycpu()->proc;
     assert(proc, "Process must be valid.");
     set_interrupt_to_user();
-    proc->kernel_sp    = proc->kernel_stack + PG_SIZE;
-    proc->kernel_cpuid = cpuid();
-    uint64_t sstatus   = CSR_Read(sstatus);
+    proc->kernel_sp = proc->kernel_stack + PG_SIZE;
+    if (cpuid() != proc->kernel_cpuid)
+        proc->kernel_cpuid = cpuid();
+    uint64_t sstatus = CSR_Read(sstatus);
     // clear SPP for user mode to make interrupt funcional
     sstatus &= ~SSTATUS_SPP;
     // set user mode interrupt enable

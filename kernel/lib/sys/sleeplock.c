@@ -17,6 +17,15 @@ void sleeplock_acquire(sleeplock_t *pLock) {
     while (pLock->lock) {
         sleep(pLock, &pLock->spinlock);
     }
+    pLock->lock = true;
+    pLock->pid  = myproc()->pid;
+    spinlock_release(&pLock->spinlock);
 }
 
-void sleeplock_release(sleeplock_t *pLock) {}
+void sleeplock_release(sleeplock_t *pLock) {
+    spinlock_acquire(&pLock->spinlock);
+    pLock->lock = false;
+    pLock->pid  = 0;
+    wakeup(pLock);
+    spinlock_release(&pLock->spinlock);
+}

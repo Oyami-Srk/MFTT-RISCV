@@ -15,6 +15,7 @@ typedef uint64_t sysret_t;
 #ifdef SYSCALL_USE_MFTT
 #define SYS_ticks 1
 #define SYS_print 2
+#define SYS_sleep 3
 #endif
 
 #ifdef SYSCALL_USE_OSCOMP

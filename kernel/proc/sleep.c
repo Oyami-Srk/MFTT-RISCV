@@ -2,9 +2,11 @@
 // Created by shiroko on 22-5-5.
 //
 
+#include <environment.h>
 #include <proc.h>
 #include <trap.h>
 
+// lock is held when we call sleep
 void sleep(void *chan, spinlock_t *lock) {
     proc_t *proc = myproc();
     if (lock != &proc->lock) {
@@ -24,4 +26,16 @@ void sleep(void *chan, spinlock_t *lock) {
     }
 }
 
-void wakeup(void *chan) {}
+void wakeup(void *chan) {
+    spinlock_acquire(&env.proc_lock);
+    for (proc_t *proc = env.proc; proc < &env.proc[env.proc_count]; proc++) {
+        spinlock_acquire(&proc->lock);
+        if (proc->status & PROC_STATUS_WAITING && proc->waiting_chan == chan) {
+            proc->status &= ~(PROC_STATUS_WAITING);
+            proc->status |= (PROC_STATUS_READY | PROC_STATUS_NORMAL);
+            // TODO: schedule the waiting process first.
+        }
+        spinlock_release(&proc->lock);
+    }
+    spinlock_release(&env.proc_lock);
+}

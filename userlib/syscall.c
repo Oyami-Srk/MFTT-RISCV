@@ -45,3 +45,5 @@ uint64_t ticks() {
     return (uint64_t)SYSCALL(SYS_ticks);
 }
 void print(char *buffer) { SYSCALL(SYS_print, (uint64_t)buffer); }
+
+void sleep(uint64_t ticks) { SYSCALL(SYS_sleep, ticks); }

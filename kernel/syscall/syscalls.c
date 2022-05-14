@@ -26,10 +26,27 @@ sysret_t sys_print(struct trap_context *trapframe) {
     return 0;
 }
 
+sysret_t sys_sleep(struct trap_context *trapframe) {
+    uint64_t t     = (uint64_t)trapframe->a0;
+    uint64_t ticks = 0;
+    spinlock_acquire(&env.ticks_lock);
+    ticks = env.ticks;
+    while (env.ticks - ticks < t) {
+        if (myproc()->status & PROC_STATUS_STOP) {
+            spinlock_release(&env.ticks_lock);
+            return -1;
+        }
+        sleep(&env.ticks, &env.ticks_lock);
+    }
+    spinlock_release(&env.ticks_lock);
+    return 0;
+}
+
 // Syscall table
 static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_ticks] = sys_ticks,
     [SYS_print] = sys_print,
+    [SYS_sleep] = sys_sleep,
 };
 
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

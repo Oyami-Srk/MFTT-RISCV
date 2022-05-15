@@ -10,6 +10,7 @@
 #include <riscv.h>
 #include <scheduler.h>
 #include <trap.h>
+#include <vfs.h>
 
 _Static_assert(sizeof(void *) == sizeof(uint64_t), "Target must be 64bit.");
 
@@ -39,6 +40,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         init_fdt(fdt_addr);
         init_memory();
         init_proc();
+        init_vfs();
 
         started = 1;
     } else {

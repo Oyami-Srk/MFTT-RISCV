@@ -108,7 +108,6 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
 // TODO: move to environment
 pde_t root_pagedir;
 void  init_paging(void *init_start, void *init_end) {
-     kprintf("Left KBytes: %ld.\n", memory_available() / 1024);
      root_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
      memset(root_pagedir, 0, PG_SIZE);
      size_t init_pg_start = ((uint64_t)init_start) >> 30;

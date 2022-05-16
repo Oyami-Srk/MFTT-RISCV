@@ -1,5 +1,6 @@
+#include "lib/sys/SBI.h"
 #include <common/types.h>
-#include <driver/SBI.h>
+#include <dev.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>
@@ -14,34 +15,36 @@
 
 _Static_assert(sizeof(void *) == sizeof(uint64_t), "Target must be 64bit.");
 
-env_t env;
-
 volatile static int started = 0;
 
 _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
     set_cpuid(hartid);
     if (cpuid() == 0) {
-        memset(&env, 0, sizeof(env));
-        spinlock_init(&env.ticks_lock);
-        spinlock_init(&env.proc_lock);
-        // Todo: init_console should use DTB resource instead SBI fucntion
-        init_console();
-        init_trap();
         kprintf("-*-*-*-*-*-*-*-*-*-*-*-*- My First Touch To RISC-V Starts "
                 "Here... -*-*-*-*-*-*-*-*-*-*-*-*-\n");
 
-        // Todo: Early memory allocator
+        init_env();
+        init_trap();
+
         // 从Device Tree中保存一些我们需要的信息，
         // 其所占用的内存在初始化结束后将不被保证有效
         // 动态解析DTB能让内核的通用性加强。
         // 本内核应该不包含任何设备定义。
+        // FIXME: FPIOA没有在DTB中，所以必须要在内核中包含设备定义
         // init_fdt会遍历DTB中所有的子节点并从已经添加的FDT Prober中选择相应的
         // prober函数来进行调用。
         init_fdt(fdt_addr);
+
         init_memory();
         init_proc();
         init_vfs();
 
+        int ret = 0;
+        if ((ret = init_driver()) != 0)
+            kpanic("Devices' driver cannot be initialized. Code: %d", ret);
+
+        while (1)
+            ;
         started = 1;
     } else {
         // Salve cores

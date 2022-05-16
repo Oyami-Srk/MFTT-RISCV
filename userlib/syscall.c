@@ -47,3 +47,14 @@ uint64_t ticks() {
 void print(char *buffer) { SYSCALL(SYS_print, (uint64_t)buffer); }
 
 void sleep(uint64_t ticks) { SYSCALL(SYS_sleep, ticks); }
+
+int openat(int pfd, const char *filename, int flags, int mode) {
+    return SYSCALL(SYS_openat, pfd, (uintptr_t)filename, flags, mode);
+}
+int close(int fd) { return SYSCALL(SYS_close, fd); }
+int write(int fd, char *buf, size_t count) {
+    return SYSCALL(SYS_write, fd, (uintptr_t)buf, count);
+}
+int read(int fd, const char *buf, size_t count) {
+    return SYSCALL(SYS_read, fd, (uintptr_t)buf, count);
+}

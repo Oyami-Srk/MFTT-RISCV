@@ -1,16 +1,14 @@
-#include <driver/SBI.h>
-#include <driver/console.h>
-#include <lib/stdlib.h>
-#include <lib/sys/spinlock.h>
+// FIXME: kconsole depends on SBI.
 
-struct {
-    spinlock_t lock;
-} console;
+#include "driver/console.h"
+#include "lib/stdlib.h"
+#include "lib/sys/SBI.h"
+#include "lib/sys/spinlock.h"
 
-void init_console() { spinlock_init(&console.lock); }
+spinlock_t kprintf_lock = {.lock = false, .cpu = 0};
 
 void kprintf(const char *fmt, ...) {
-    spinlock_acquire(&console.lock);
+    spinlock_acquire(&kprintf_lock);
     int         i;
     static char buf[MAX_CONSOLE_BUF];
     va_list     arg;
@@ -20,12 +18,14 @@ void kprintf(const char *fmt, ...) {
     char *s = buf;
     while (*s != '\0')
         SBI_putchar(*(s++));
-    spinlock_release(&console.lock);
+    spinlock_release(&kprintf_lock);
 }
 
 void kputc(const char c) { SBI_putchar(c); }
 
-static void print_str(const char *buf) {
+spinlock_t kpanic_lock = {.lock = false, .cpu = 0};
+
+static void print_str_nolock(const char *buf) {
     char *s = (char *)buf;
     while (*s != '\0')
         SBI_putchar(*(s++));
@@ -33,8 +33,10 @@ static void print_str(const char *buf) {
 
 _Noreturn void kpanic_proto(const char *s_fn, const char *b_fn, const int line,
                             const char *fmt, ...) {
-    print_str("\n\n==================================================\n");
-    print_str("[PANIC] ");
+    spinlock_acquire(&kpanic_lock);
+    print_str_nolock(
+        "\n\n==================================================\n");
+    print_str_nolock("[PANIC] ");
     int     i;
     char    buf[MAX_CONSOLE_BUF];
     va_list arg = (va_list)((char *)(&fmt) + 4);
@@ -43,19 +45,21 @@ _Noreturn void kpanic_proto(const char *s_fn, const char *b_fn, const int line,
     char *s     = buf;
     while (*s != '\0')
         SBI_putchar(*(s++));
-    print_str("\nAt file: ");
-    print_str(s_fn);
+    print_str_nolock("\nAt file: ");
+    print_str_nolock(s_fn);
     if (s_fn != b_fn) {
-        print_str("; Base file: ");
-        print_str(b_fn);
+        print_str_nolock("; Base file: ");
+        print_str_nolock(b_fn);
     }
-    print_str("; Line: ");
+    print_str_nolock("; Line: ");
     char num_buf[32] = "\0";
     itoa(line, num_buf, 10);
-    print_str(num_buf);
-    print_str("\n==================================================\n\n");
+    print_str_nolock(num_buf);
+    print_str_nolock(
+        "\n==================================================\n\n");
     // Panic halt
     //    SBI_shutdown();
+    spinlock_release(&kpanic_lock);
     while (1)
         ;
 }

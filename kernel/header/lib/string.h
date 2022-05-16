@@ -1,6 +1,8 @@
 #ifndef __STRING_H__
 #define __STRING_H__
 
+#include <common/types.h>
+
 char  *strcpy(char *dst, char *src);
 size_t strlen(const char *s);
 void  *memcpy(void *dst, const void *src, size_t size);

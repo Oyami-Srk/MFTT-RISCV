@@ -2,8 +2,8 @@
 // Created by shiroko on 22-5-2.
 //
 
+#include "lib/sys/SBI.h"
 #include <common/types.h>
-#include <driver/SBI.h>
 #include <riscv.h>
 #include <scheduler.h>
 #include <trap.h>

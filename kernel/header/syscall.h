@@ -7,7 +7,7 @@
 
 #include <common/types.h>
 
-typedef uint64_t sysret_t;
+typedef long long sysret_t;
 
 #define SYSCALL_USE_OSCOMP
 #define SYSCALL_USE_MFTT

@@ -8,6 +8,7 @@
 #include <common/types.h>
 #include <lib/sys/spinlock.h>
 #include <memory.h>
+#include <vfs.h>
 
 typedef uint32_t pid_t;
 
@@ -110,6 +111,10 @@ struct __proc_t {
     char  *prog_break;       // in va
     char  *prog_image_start; // in va
     char  *prog_brk_pg_end;
+    // File table
+#define MAX_FILE_OPEN 32
+    // 0 - stdin, 1 - stdout, 2 - stderr
+    struct vfs_file *files[MAX_FILE_OPEN];
 } __attribute__((aligned(16)));
 
 typedef struct __proc_t proc_t;

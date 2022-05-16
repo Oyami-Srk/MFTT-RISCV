@@ -7,6 +7,8 @@
 
 int main() {
     print("Hello world.\n");
+    int fd = openat(0, "/dev/tty", 0, 0);
+    write(fd, "Hello File!\n", 12);
     char buf[32];
     for (;;) {
         itoa(ticks(), buf, 10);

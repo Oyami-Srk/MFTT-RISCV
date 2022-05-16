@@ -27,9 +27,6 @@ struct filesystem_t;
 // OPs
 
 struct vfs_inode_ops {
-    // 在dentry目录项下创建一个新的inode，inode硬链接到dentry/name
-    int (*create)(struct vfs_inode *inode, const char *name,
-                  struct vfs_dir_entry *dentry);
     // 在目录项中寻找名字为name的目录项，并写入found_inode中
     int (*lookup)(struct vfs_inode *inode, const char *name,
                   struct vfs_dir_entry **found_inode);
@@ -51,31 +48,41 @@ struct vfs_file_ops {
     int (*mmap)(struct vfs_file *file, char *addr, size_t offset, size_t len);
     int (*munmap)(struct vfs_file *file, char *addr, size_t len);
     int (*flush)(struct vfs_file *file);
-    int (*release)(struct vfs_file *file);
+    int (*open)(struct vfs_file *file);
+    int (*close)(struct vfs_file *file);
 };
 
-struct vfs_superblock_ops {};
+struct vfs_superblock_ops {
+    // 创建一个新的inode
+    struct vfs_inode *(*alloc_inode)(struct vfs_superblock *sb);
+    int (*free_inode)(struct vfs_superblock *sb, struct vfs_inode *inode);
+    int (*write_inode)(struct vfs_superblock *sb, struct vfs_inode *inode);
+    int (*read_inode)(struct vfs_superblock *sb, struct vfs_inode *inode);
+};
 
 struct vfs_fs_ops {
     struct vfs_superblock *(*init_fs)(struct vfs_superblock *, void *);
 };
 
 // Defs
-enum inode_type { inode_dev, inode_mount, inode_file, inode_dir };
+enum inode_type { inode_rootfs, inode_dev, inode_file, inode_dir };
+
 #define VFS_DEV_BLOCK 1
 #define VFS_DEV_CHAR  2
 #define VFS_DEV_PIPE  3
 
 // Inode标识一个文件系统上唯一存在的文件对象。
 struct vfs_inode {
-    int      i_ino;
-    int      i_nlinks; // hard links
-    int      i_counts; // opened files counts, when decrease to 0, write.
-    size_t   i_size;   // bytes size
-    uint16_t i_dev[2]; // major, minor
+    int             i_ino;
+    int             i_nlinks; // hard links
+    int             i_counts; // opened files counts, when decrease to 0, write.
+    size_t          i_size;   // bytes size
+    uint16_t        i_dev[2]; // major for vfs, minor for dev driver.
+    enum inode_type i_type;
 
     struct vfs_inode_ops  *i_op;
     struct vfs_superblock *i_sb;
+    struct vfs_file_ops   *i_f_op;
 
     list_head_t i_sb_list; // 超级块中的inode链表
 
@@ -88,13 +95,18 @@ struct vfs_inode {
 };
 
 // DirEntry标识一个目录inode内的每一项，包含文件和子目录。
-#define D_NAME_LEN 16
+#define D_NAME_LEN        16
+#define D_TYPE_FILE       1
+#define D_TYPE_DIR        2
+#define D_TYPE_NOT_LOADED 3
+
 struct vfs_dir_entry {
-    struct vfs_dir_entry *d_parent;
+    struct vfs_dir_entry *d_parent; // 目录项的父目录项
     // const char           *d_name;
-    char              d_name[D_NAME_LEN];
-    struct vfs_inode *d_inode;
-    list_head_t       d_subdirs_list; // DirEntry中的子目录项链表
+    char              d_name[D_NAME_LEN]; // 目录项的名字
+    struct vfs_inode *d_inode;            // 目录项指向的inode
+    list_head_t       d_subdirs_list;     // DirEntry中的子目录项链表
+    uint8_t           d_type;
 
     list_head_t d_subdirs; // -> d_subdirs_list;
 };
@@ -102,17 +114,22 @@ struct vfs_dir_entry {
 struct vfs_superblock {
     uint16_t                   s_dev;
     struct vfs_superblock_ops *s_op;
-    struct vfs_dir_entry      *s_root;     // mount point
-    list_head_t                inode_head; // -> i_sb_list
+
+    struct vfs_inode *s_root; // root inode
+    list_head_t s_inode_head; // -> i_sb_list, 一个超级块的所有inode链表
+
+    void *s_fs_data;
 };
 
 // File标识一个被打开的文件实例。
 struct vfs_file {
     struct vfs_inode     *f_inode;
-    const char           *f_path;
     size_t                f_offset;
     struct vfs_dir_entry *f_dentry;
     struct vfs_file_ops  *f_op;
+    int                   f_mode;
+
+    void *f_fs_data;
 };
 
 struct filesystem_t {
@@ -121,6 +138,19 @@ struct filesystem_t {
     struct vfs_fs_ops *fs_op;
 };
 
-void init_vfs();
+// Funcs
+void                  init_vfs();
+struct vfs_dir_entry *vfs_get_dentry(const char           *path,
+                                     struct vfs_dir_entry *cwd);
+struct vfs_inode     *vfs_alloc_inode(struct vfs_superblock *sb);
+int                   vfs_write_inode(struct vfs_inode *inode);
+int vfs_link_inode(struct vfs_inode *inode, struct vfs_dir_entry *parent,
+                   const char *name);
+
+struct vfs_file *vfs_open(struct vfs_dir_entry *dentry, int mode);
+int              vfs_close(struct vfs_file *file);
+int vfs_read(struct vfs_file *file, char *buffer, size_t offset, size_t len);
+int vfs_write(struct vfs_file *file, const char *buffer, size_t offset,
+              size_t len);
 
 #endif // __VFS_H__

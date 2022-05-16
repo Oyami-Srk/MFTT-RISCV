@@ -56,4 +56,9 @@ uint64_t ticks();
 void     print(char *buffer);
 void     sleep(uint64_t ticks);
 
+int openat(int pfd, const char *filename, int flags, int mode);
+int close(int fd);
+int write(int fd, char *buf, size_t count);
+int read(int fd, const char *buf, size_t count);
+
 #endif // __SYSCALL_H__

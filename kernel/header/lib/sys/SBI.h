@@ -5,7 +5,7 @@
 #ifndef __SBI_H__
 #define __SBI_H__
 
-#include <common/types.h>
+#include "common/types.h"
 
 #define SBI_SET_TIMER 0
 #define SBI_PUTCHAR   1

@@ -1,6 +1,6 @@
 #include "./utils.h"
+#include "lib/sys/SBI.h"
 #include <common/types.h>
-#include <driver/SBI.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>

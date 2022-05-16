@@ -7,6 +7,7 @@
 
 #include <common/types.h>
 #include <configs.h>
+#include <lib/linklist.h>
 #include <lib/sys/spinlock.h>
 #include <memory.h>
 #include <proc.h>
@@ -40,12 +41,17 @@ struct __env_t {
         proc_bitmap[MAX_PROC / BITS_PER_BITSET]; // for fast finding empty slot
     spinlock_t       proc_lock;
     scheduler_data_t scheduler_data;
+    /* VFS */
+    /* Device */
+    list_head_t driver_list_head;
 } __attribute__((aligned(16)));
 typedef struct __env_t env_t;
 
 // TODO: I hate global value
-extern env_t env; // Inside startup.c
+extern env_t env; // Inside environment.c
 
 static inline cpu_t *mycpu() { return &env.cpus[cpuid()]; }
+
+void init_env();
 
 #endif // __ENVIRONMENT_H__

@@ -7,21 +7,21 @@
 #include <memory.h>
 #include <vfs.h>
 
-struct vfs_dir_entry root_dentry = {
+dentry_t root_dentry = {
     .d_inode   = NULL,
     .d_name    = "/",
     .d_parent  = NULL,
     .d_subdirs = LIST_HEAD_INIT(root_dentry.d_subdirs),
 };
 
-struct vfs_dir_entry sys_dentry = {
+dentry_t sys_dentry = {
     .d_inode   = NULL,
     .d_name    = "sys",
     .d_parent  = &root_dentry,
     .d_subdirs = LIST_HEAD_INIT(sys_dentry.d_subdirs),
 };
 
-struct vfs_dir_entry dev_dentry = {
+dentry_t dev_dentry = {
     .d_inode   = NULL,
     .d_name    = "dev",
     .d_parent  = &root_dentry,
@@ -34,8 +34,7 @@ void init_vfs() {
     list_add(&dev_dentry.d_subdirs_list, &root_dentry.d_subdirs);
 }
 
-struct vfs_dir_entry *vfs_get_dentry(const char           *path,
-                                     struct vfs_dir_entry *cwd) {
+dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
     // TODO: better this method
     if (cwd == NULL || path[0] == '/')
         cwd = &root_dentry;
@@ -64,8 +63,7 @@ struct vfs_dir_entry *vfs_get_dentry(const char           *path,
                 continue;
             }
             kprintf("Lookup %s.\n", fname);
-            list_foreach_entry(&cwd->d_subdirs, struct vfs_dir_entry,
-                               d_subdirs_list, dir) {
+            list_foreach_entry(&cwd->d_subdirs, dentry_t, d_subdirs_list, dir) {
                 if (strcmp(fname, dir->d_name) == 0) {
                     cwd   = dir;
                     found = true;
@@ -73,11 +71,11 @@ struct vfs_dir_entry *vfs_get_dentry(const char           *path,
                 }
             }
             if (!found) {
-                struct vfs_inode *dir_inode = cwd->d_inode;
+                inode_t *dir_inode = cwd->d_inode;
                 if (!dir_inode || !dir_inode->i_op->lookup)
                     return NULL;
-                struct vfs_dir_entry *r;
-                int ret = dir_inode->i_op->lookup(dir_inode, fname, &r);
+                dentry_t *r;
+                int       ret = dir_inode->i_op->lookup(dir_inode, fname, &r);
                 if (ret != 0)
                     return NULL;
                 list_add(&r->d_subdirs_list, &cwd->d_subdirs);
@@ -88,12 +86,11 @@ struct vfs_dir_entry *vfs_get_dentry(const char           *path,
     return cwd;
 }
 
-struct vfs_inode *vfs_alloc_inode(struct vfs_superblock *sb) {
+inode_t *vfs_alloc_inode(superblock_t *sb) {
     if (!sb) {
         // alloc by rootfs
-        struct vfs_inode *inode =
-            (struct vfs_inode *)kmalloc(sizeof(struct vfs_inode));
-        memset(inode, 0, sizeof(struct vfs_inode));
+        inode_t *inode = (inode_t *)kmalloc(sizeof(inode_t));
+        memset(inode, 0, sizeof(inode_t));
         spinlock_init(&inode->spinlock);
         return inode;
     } else {
@@ -103,8 +100,8 @@ struct vfs_inode *vfs_alloc_inode(struct vfs_superblock *sb) {
     }
 }
 
-int vfs_write_inode(struct vfs_inode *inode) {
-    struct vfs_superblock *sb = inode->i_sb;
+int vfs_write_inode(inode_t *inode) {
+    superblock_t *sb = inode->i_sb;
     if (sb) {
         if (!sb->s_op->write_inode)
             return -1;
@@ -115,8 +112,7 @@ int vfs_write_inode(struct vfs_inode *inode) {
     }
 }
 
-int vfs_link_inode(struct vfs_inode *inode, struct vfs_dir_entry *parent,
-                   const char *name) {
+int vfs_link_inode(inode_t *inode, dentry_t *parent, const char *name) {
     // TODO: validate name
     int r = 0;
     if (!parent->d_inode || !inode->i_op->link) {
@@ -124,9 +120,8 @@ int vfs_link_inode(struct vfs_inode *inode, struct vfs_dir_entry *parent,
     } else {
         r = inode->i_op->link(inode, parent->d_inode, name);
     }
-    struct vfs_dir_entry *d =
-        (struct vfs_dir_entry *)kmalloc(sizeof(struct vfs_dir_entry));
-    memset(d, 0, sizeof(struct vfs_dir_entry));
+    dentry_t *d = (dentry_t *)kmalloc(sizeof(dentry_t));
+    memset(d, 0, sizeof(dentry_t));
     d->d_subdirs = (list_head_t)LIST_HEAD_INIT(d->d_subdirs);
     d->d_parent  = parent;
     if (inode->i_type == inode_dir)
@@ -138,9 +133,9 @@ int vfs_link_inode(struct vfs_inode *inode, struct vfs_dir_entry *parent,
     return r;
 }
 
-struct vfs_file *vfs_open(struct vfs_dir_entry *dentry, int mode) {
-    struct vfs_file *file = (struct vfs_file *)kmalloc(sizeof(struct vfs_file));
-    memset(file, 0, sizeof(struct vfs_file));
+file_t *vfs_open(dentry_t *dentry, int mode) {
+    file_t *file = (file_t *)kmalloc(sizeof(file_t));
+    memset(file, 0, sizeof(file_t));
     file->f_dentry = dentry;
     file->f_inode  = dentry->d_inode;
     file->f_offset = 0;
@@ -155,16 +150,15 @@ struct vfs_file *vfs_open(struct vfs_dir_entry *dentry, int mode) {
     return file;
 }
 
-int vfs_close(struct vfs_file *file) {}
+int vfs_close(file_t *file) {}
 
-int vfs_read(struct vfs_file *file, char *buffer, size_t offset, size_t len) {
+int vfs_read(file_t *file, char *buffer, size_t offset, size_t len) {
     if (!file->f_op || file->f_op->read)
         return -1;
     return file->f_op->read(file, buffer, offset, len);
 }
 
-int vfs_write(struct vfs_file *file, const char *buffer, size_t offset,
-              size_t len) {
+int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
     if (!file->f_op || file->f_op->write)
         return -1;
     return file->f_op->write(file, buffer, offset, len);

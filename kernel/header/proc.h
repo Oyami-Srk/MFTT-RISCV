@@ -114,7 +114,7 @@ struct __proc_t {
     // File table
 #define MAX_FILE_OPEN 32
     // 0 - stdin, 1 - stdout, 2 - stderr
-    struct vfs_file *files[MAX_FILE_OPEN];
+    file_t *files[MAX_FILE_OPEN];
 } __attribute__((aligned(16)));
 
 typedef struct __proc_t proc_t;

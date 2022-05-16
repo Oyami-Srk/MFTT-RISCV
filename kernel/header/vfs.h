@@ -22,47 +22,55 @@ struct vfs_inode;
 struct vfs_dir_entry;
 struct vfs_file;
 struct vfs_superblock;
-struct filesystem_t;
+struct vfs_filesystem_t;
+
+typedef struct vfs_inode        inode_t;
+typedef struct vfs_file         file_t;
+typedef struct vfs_superblock   superblock_t;
+typedef struct vfs_dir_entry    dentry_t;
+typedef struct vfs_filesystem_t filesystem_t;
 
 // OPs
 
 struct vfs_inode_ops {
     // 在目录项中寻找名字为name的目录项，并写入found_inode中
-    int (*lookup)(struct vfs_inode *inode, const char *name,
-                  struct vfs_dir_entry **found_inode);
+    int (*lookup)(inode_t *inode, const char *name, dentry_t **found_inode);
     // 链接/取消链接 一个inode到dir里。
-    int (*link)(struct vfs_inode *inode, struct vfs_inode *dir,
-                const char *name);
-    int (*unlink)(struct vfs_inode *dir, const char *name);
+    int (*link)(inode_t *inode, inode_t *dir, const char *name);
+    int (*unlink)(inode_t *dir, const char *name);
     // 创建/删除目录inode
-    int (*mkdir)(struct vfs_inode *parent, const char *name);
-    int (*rmdir)(struct vfs_inode *parent, const char *name);
+    int (*mkdir)(inode_t *parent, const char *name);
+    int (*rmdir)(inode_t *parent, const char *name);
 };
 
 struct vfs_file_ops {
-    int (*seek)(struct vfs_file *file, size_t offset);
-    int (*read)(struct vfs_file *file, char *buffer, size_t offset, size_t len);
-    int (*write)(struct vfs_file *file, const char *buffer, size_t offset,
-                 size_t len);
+    int (*seek)(file_t *file, size_t offset);
+    int (*read)(file_t *file, char *buffer, size_t offset, size_t len);
+    int (*write)(file_t *file, const char *buffer, size_t offset, size_t len);
     // 内存映射，读写文件的时候其实是操作的内存中的缓冲区，mmap直接把内核缓冲映射到用户地址
-    int (*mmap)(struct vfs_file *file, char *addr, size_t offset, size_t len);
-    int (*munmap)(struct vfs_file *file, char *addr, size_t len);
-    int (*flush)(struct vfs_file *file);
-    int (*open)(struct vfs_file *file);
-    int (*close)(struct vfs_file *file);
+    int (*mmap)(file_t *file, char *addr, size_t offset, size_t len);
+    int (*munmap)(file_t *file, char *addr, size_t len);
+    int (*flush)(file_t *file);
+    int (*open)(file_t *file);
+    int (*close)(file_t *file);
 };
 
 struct vfs_superblock_ops {
     // 创建一个新的inode
-    struct vfs_inode *(*alloc_inode)(struct vfs_superblock *sb);
-    int (*free_inode)(struct vfs_superblock *sb, struct vfs_inode *inode);
-    int (*write_inode)(struct vfs_superblock *sb, struct vfs_inode *inode);
-    int (*read_inode)(struct vfs_superblock *sb, struct vfs_inode *inode);
+    inode_t *(*alloc_inode)(superblock_t *sb);
+    int (*free_inode)(superblock_t *sb, inode_t *inode);
+    int (*write_inode)(superblock_t *sb, inode_t *inode);
+    int (*read_inode)(superblock_t *sb, inode_t *inode);
 };
 
 struct vfs_fs_ops {
     struct vfs_superblock *(*init_fs)(struct vfs_superblock *, void *);
 };
+
+typedef struct vfs_inode_ops      inode_ops_t;
+typedef struct vfs_file_ops       file_ops_t;
+typedef struct vfs_superblock_ops superblock_ops_t;
+typedef struct vfs_fs_ops         filesystem_ops_t;
 
 // Defs
 enum inode_type { inode_rootfs, inode_dev, inode_file, inode_dir };
@@ -80,9 +88,9 @@ struct vfs_inode {
     uint16_t        i_dev[2]; // major for vfs, minor for dev driver.
     enum inode_type i_type;
 
-    struct vfs_inode_ops  *i_op;
-    struct vfs_superblock *i_sb;
-    struct vfs_file_ops   *i_f_op;
+    inode_ops_t  *i_op;
+    superblock_t *i_sb;
+    file_ops_t   *i_f_op;
 
     list_head_t i_sb_list; // 超级块中的inode链表
 
@@ -101,21 +109,21 @@ struct vfs_inode {
 #define D_TYPE_NOT_LOADED 3
 
 struct vfs_dir_entry {
-    struct vfs_dir_entry *d_parent; // 目录项的父目录项
+    dentry_t *d_parent; // 目录项的父目录项
     // const char           *d_name;
-    char              d_name[D_NAME_LEN]; // 目录项的名字
-    struct vfs_inode *d_inode;            // 目录项指向的inode
-    list_head_t       d_subdirs_list;     // DirEntry中的子目录项链表
-    uint8_t           d_type;
+    char        d_name[D_NAME_LEN]; // 目录项的名字
+    inode_t    *d_inode;            // 目录项指向的inode
+    list_head_t d_subdirs_list;     // DirEntry中的子目录项链表
+    uint8_t     d_type;
 
     list_head_t d_subdirs; // -> d_subdirs_list;
 };
 
 struct vfs_superblock {
-    uint16_t                   s_dev;
-    struct vfs_superblock_ops *s_op;
+    uint16_t          s_dev;
+    superblock_ops_t *s_op;
 
-    struct vfs_inode *s_root; // root inode
+    inode_t    *s_root;       // root inode
     list_head_t s_inode_head; // -> i_sb_list, 一个超级块的所有inode链表
 
     void *s_fs_data;
@@ -132,25 +140,22 @@ struct vfs_file {
     void *f_fs_data;
 };
 
-struct filesystem_t {
+struct vfs_filesystem_t {
     const char        *fs_name;
     uint16_t           fs_dev;
     struct vfs_fs_ops *fs_op;
 };
 
 // Funcs
-void                  init_vfs();
-struct vfs_dir_entry *vfs_get_dentry(const char           *path,
-                                     struct vfs_dir_entry *cwd);
-struct vfs_inode     *vfs_alloc_inode(struct vfs_superblock *sb);
-int                   vfs_write_inode(struct vfs_inode *inode);
-int vfs_link_inode(struct vfs_inode *inode, struct vfs_dir_entry *parent,
-                   const char *name);
+void      init_vfs();
+dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd);
+inode_t  *vfs_alloc_inode(superblock_t *sb);
+int       vfs_write_inode(inode_t *inode);
+int       vfs_link_inode(inode_t *inode, dentry_t *parent, const char *name);
 
-struct vfs_file *vfs_open(struct vfs_dir_entry *dentry, int mode);
-int              vfs_close(struct vfs_file *file);
-int vfs_read(struct vfs_file *file, char *buffer, size_t offset, size_t len);
-int vfs_write(struct vfs_file *file, const char *buffer, size_t offset,
-              size_t len);
+file_t *vfs_open(dentry_t *dentry, int mode);
+int     vfs_close(file_t *file);
+int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
+int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);
 
 #endif // __VFS_H__

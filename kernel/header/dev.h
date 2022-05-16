@@ -24,8 +24,8 @@ typedef struct __dev_driver_t {
 
     void *private_data;
 
-    struct vfs_inode_ops *dev_inode_ops;
-    struct vfs_file_ops  *dev_file_ops;
+    inode_ops_t *dev_inode_ops;
+    file_ops_t  *dev_file_ops;
 } dev_driver_t;
 
 #define ADD_DEV_DRIVER(driver)                                                 \
@@ -33,7 +33,7 @@ typedef struct __dev_driver_t {
         __attribute__((used, section("DevDrivers"))) = &driver
 
 int                   init_driver();
-struct vfs_inode_ops *get_driver_inode_ops(uint8_t dev_id);
-struct vfs_file_ops  *get_driver_file_ops(uint8_t dev_id);
+inode_ops_t *get_driver_inode_ops(uint8_t dev_id);
+file_ops_t  *get_driver_file_ops(uint8_t dev_id);
 
 #endif // __DEV_H__

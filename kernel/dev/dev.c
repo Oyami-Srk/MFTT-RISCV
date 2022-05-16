@@ -52,10 +52,10 @@ int init_driver() {
     return 0;
 }
 
-struct vfs_inode_ops *get_driver_inode_ops(uint8_t dev_id) {
+inode_ops_t *get_driver_inode_ops(uint8_t dev_id) {
     return devfs[dev_id]->dev_inode_ops;
 }
 
-struct vfs_file_ops *get_driver_file_ops(uint8_t dev_id) {
+file_ops_t *get_driver_file_ops(uint8_t dev_id) {
     return devfs[dev_id]->dev_file_ops;
 }

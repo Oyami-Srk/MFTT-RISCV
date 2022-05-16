@@ -49,14 +49,14 @@ sysret_t sys_open(struct trap_context *trapframe) {
     int         flags    = (int)(trapframe->a3 & 0xFFFFFFFF);
     int         mode     = (int)(trapframe->a4 & 0xFFFFFFFF);
 
-    int                   new_fd = 1;
-    struct vfs_dir_entry *dentry = vfs_get_dentry(filename, NULL);
+    int       new_fd = 1;
+    dentry_t *dentry = vfs_get_dentry(filename, NULL);
     if (!dentry)
         return -1;
-    struct vfs_file *file = vfs_open(dentry, mode);
+    file_t *file = vfs_open(dentry, mode);
     if (!file)
         return -1;
-    struct vfs_file **ftable = myproc()->files;
+    file_t **ftable = myproc()->files;
     for (int i = 0; i < MAX_FILE_OPEN; i++) {
         if (ftable[i] == NULL) {
             ftable[i] = file;
@@ -73,20 +73,20 @@ sysret_t sys_close(struct trap_context *trapframe) {
 }
 
 sysret_t sys_read(struct trap_context *trapframe) {
-    int              fd    = (int)(trapframe->a0 & 0xFFFFFFFF);
-    char            *buf   = (char *)(trapframe->a1);
-    size_t           count = (size_t)(trapframe->a2);
-    struct vfs_file *file  = myproc()->files[fd];
+    int     fd    = (int)(trapframe->a0 & 0xFFFFFFFF);
+    char   *buf   = (char *)(trapframe->a1);
+    size_t  count = (size_t)(trapframe->a2);
+    file_t *file  = myproc()->files[fd];
     if (!file)
         return -1;
     return vfs_read(file, buf, file->f_offset, count);
 }
 
 sysret_t sys_write(struct trap_context *trapframe) {
-    int              fd    = (int)(trapframe->a0 & 0xFFFFFFFF);
-    const char      *buf   = (const char *)(trapframe->a1);
-    size_t           count = (size_t)(trapframe->a2);
-    struct vfs_file *file  = myproc()->files[fd];
+    int         fd    = (int)(trapframe->a0 & 0xFFFFFFFF);
+    const char *buf   = (const char *)(trapframe->a1);
+    size_t      count = (size_t)(trapframe->a2);
+    file_t     *file  = myproc()->files[fd];
     if (!file)
         return -1;
     return vfs_write(file, buf, file->f_offset, count);

@@ -68,7 +68,7 @@ static inline void write_buffer(char data) {
     wakeup(&cons.count);
 }
 
-int console_write(struct vfs_file *file, const char *buffer, size_t offset,
+int console_write(file_t *file, const char *buffer, size_t offset,
                   size_t len) {
     sleeplock_acquire(&cons.w_lock);
     for (int i = 0; i < len; i++) {
@@ -77,7 +77,7 @@ int console_write(struct vfs_file *file, const char *buffer, size_t offset,
     sleeplock_release(&cons.w_lock);
 }
 
-int console_read(struct vfs_file *file, char *buffer, size_t offset,
+int console_read(file_t *file, char *buffer, size_t offset,
                  size_t len) {}
 
 int init_console(dev_driver_t *drv) {
@@ -85,13 +85,14 @@ int init_console(dev_driver_t *drv) {
     cons.count            = 0;
     spinlock_init(&cons.r_lock);
     sleeplock_init(&cons.w_lock);
+    // setup vfs
     return 0;
 }
 
-static struct vfs_inode_ops inode_ops = {
+static inode_ops_t inode_ops = {
     .link = NULL, .lookup = NULL, .mkdir = NULL, .rmdir = NULL, .unlink = NULL};
 
-static struct vfs_file_ops file_ops = {
+static file_ops_t file_ops = {
     .flush  = NULL,
     .mmap   = NULL,
     .munmap = NULL,

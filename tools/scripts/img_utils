@@ -15,6 +15,9 @@ function build_empty() {
 }
 
 function attach() {
+    if [[ ! -f "$1" ]]; then
+        build_empty $1
+    fi
     if [[ -f "$1.lock" ]]; then
         if [[ -d "$(${CAT} $1.lock)" ]]; then
             echo "Image $1 has already been attached at $(${CAT} $1.lock)"

@@ -8,7 +8,6 @@ SET(CMAKE_EXECUTABLE_SUFFIX ".elf")
 
 # Find cross compiler for RISCV64
 FIND_PROGRAM(RISCV_C_COMPILER "riscv64-elf-gcc")
-message("What: ${RISCV_C_COMPILER}")
 
 if (EXISTS "${RISCV_C_COMPILER}")
     SET(RISCV_TOOLCHAIN_PREFIX "riscv64-elf-")
@@ -36,6 +35,8 @@ SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing 
 
 PROJECT(MyFirstTouchToRISCV)
 #SET(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
+SET(IMG_UTILS ${PROJECT_SOURCE_DIR}/tools/scripts/img_utils)
+SET(DISK_IMAGE fs.img)
 
 FILE(GLOB_RECURSE ASM_SRCS "kernel/*/*.S")
 FILE(GLOB_RECURSE C_SRCS "kernel/*/*.c")
@@ -57,19 +58,24 @@ ADD_CUSTOM_COMMAND(TARGET kernel.elf
         COMMAND ${CMAKE_OBJDUMP} -S ${CMAKE_BINARY_DIR}/kernel.elf > ${CMAKE_BINARY_DIR}/kernel.disasm)
 # End of kernel.elf
 
+SET(USER_PROG_COMPILE_OPTIONS "-Wall;-Werror;-O;-fno-omit-frame-pointer;"
+        "-ggdb;-g;-MD;-mcmodel=medany;-ffreestanding;-fno-common;-nostdlib;"
+        ";-mno-relax;-fno-stack-protector")
+# TODO: use _start and cutom crt0 as entry.
+SET(USER_PROG_LINK_OPTIONS "-z;max-page-size=4096;-N;-e;main;-Ttext;0")
+
 # Generate static userlib
 FILE(GLOB_RECURSE ULIB_SRCS "userlib/*.c")
 ADD_LIBRARY(user STATIC ${ULIB_SRCS})
 TARGET_INCLUDE_DIRECTORIES(user PUBLIC "userlib/header")
+TARGET_COMPILE_OPTIONS(user INTERFACE ${USER_PROG_COMPILE_OPTIONS})
+TARGET_LINK_OPTIONS(user INTERFACE ${USER_PROG_LINK_OPTIONS})
 # End of userlib
+
 
 # Init code
 FILE(GLOB_RECURSE INIT_SRCS "init/*.c")
 ADD_EXECUTABLE(init.elf ${INIT_SRCS})
-TARGET_COMPILE_OPTIONS(init.elf PRIVATE -Wall -Werror -O -fno-omit-frame-pointer
-        -ggdb -g -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib
-        -mno-relax -fno-stack-protector)
-TARGET_LINK_OPTIONS(init.elf PRIVATE -z max-page-size=4096 -N -e main -Ttext 0)
 TARGET_LINK_LIBRARIES(init.elf user)
 
 ADD_LIBRARY(init_code STATIC init/package.S)
@@ -78,8 +84,42 @@ SET_SOURCE_FILES_PROPERTIES(init/package.S OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/in
 TARGET_COMPILE_DEFINITIONS(init_code PRIVATE INIT_ELF="${CMAKE_BINARY_DIR}/init.elf")
 # End of init
 
+# User Prog
+ADD_EXECUTABLE(prog1 progs/prog1.c)
+TARGET_LINK_LIBRARIES(prog1 user)
+SET_TARGET_PROPERTIES(prog1 PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/userprogs")
+SET(USER_PROGS prog1)
+# End of user prog
+
 # Generate HD.img
-SET(BUILD_IMAGE ${PROJECT_SOURCE_DIR}/tools/scripts/build_image.sh)
-SET(DISK_IMAGE fs.img)
-ADD_CUSTOM_TARGET(fs.img)
+IF ("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
+    FIND_PROGRAM(UDISKSCTL "udisksctl")
+    FIND_PROGRAM(RSYNC "rsync")
+    IF (UDISKSCTL AND RSYNC)
+        SET(IMG "${CMAKE_BINARY_DIR}/${DISK_IMAGE}")
+
+        ADD_CUSTOM_COMMAND(OUTPUT ${DISK_IMAGE}
+                COMMAND ${IMG_UTILS} attach ${IMG}
+                COMMAND ${IMG_UTILS} sync ${CMAKE_BINARY_DIR}/userprogs/ ${IMG} .
+                COMMAND ${IMG_UTILS} detach ${IMG}
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                )
+
+        ADD_CUSTOM_TARGET(generate_img ALL DEPENDS ${DISK_IMAGE})
+        ADD_DEPENDENCIES(kernel.elf generate_img)
+
+        ADD_CUSTOM_COMMAND(OUTPUT ${DISK_IMAGE}
+                DEPENDS ${USER_PROGS}
+                APPEND
+                )
+    ELSE ()
+        MESSAGE(WARNING "Generate disk image require udisks2 (udisksctl command) and rsync.")
+    ENDIF ()
+ELSE ()
+    MESSAGE(WARNING "Generate disk image is only support under Linux platform")
+ENDIF ()
+
 # End of HD.img
+
+
+

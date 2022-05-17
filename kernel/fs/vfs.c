@@ -62,7 +62,6 @@ dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
                     cwd = &root_dentry;
                 continue;
             }
-            kprintf("Lookup %s.\n", fname);
             list_foreach_entry(&cwd->d_subdirs, dentry_t, d_subdirs_list, dir) {
                 if (strcmp(fname, dir->d_name) == 0) {
                     cwd   = dir;
@@ -117,6 +116,7 @@ int vfs_link_inode(inode_t *inode, dentry_t *parent, const char *name) {
     int r = 0;
     if (!parent->d_inode || !inode->i_op->link) {
         // link by rootfs
+        inode->i_nlinks++;
     } else {
         r = inode->i_op->link(inode, parent->d_inode, name);
     }
@@ -130,6 +130,7 @@ int vfs_link_inode(inode_t *inode, dentry_t *parent, const char *name) {
         d->d_type = D_TYPE_FILE;
     strcpy(d->d_name, (char *)name);
     d->d_inode = inode;
+    list_add(&d->d_subdirs_list, &parent->d_subdirs);
     return r;
 }
 
@@ -153,13 +154,13 @@ file_t *vfs_open(dentry_t *dentry, int mode) {
 int vfs_close(file_t *file) {}
 
 int vfs_read(file_t *file, char *buffer, size_t offset, size_t len) {
-    if (!file->f_op || file->f_op->read)
+    if (!file->f_op || !file->f_op->read)
         return -1;
     return file->f_op->read(file, buffer, offset, len);
 }
 
 int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
-    if (!file->f_op || file->f_op->write)
+    if (!file->f_op || !file->f_op->write)
         return -1;
     return file->f_op->write(file, buffer, offset, len);
 }

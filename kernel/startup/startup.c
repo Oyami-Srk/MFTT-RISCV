@@ -43,8 +43,6 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         if ((ret = init_driver()) != 0)
             kpanic("Devices' driver cannot be initialized. Code: %d", ret);
 
-        while (1)
-            ;
         started = 1;
     } else {
         // Salve cores

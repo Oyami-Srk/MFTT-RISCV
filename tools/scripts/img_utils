@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+
+UNAME=`uname`
+IMAGE_SIZE="512" # In megabytes
+DD=/bin/dd
+CAT=/bin/cat
+MKFAT="/bin/mkfs.vfat -F 32"
+
+function build_empty() {
+    if [[ -f $1 ]]; then
+        echo "Overwrite exsiting file $1."
+    fi
+    ${DD} if=/dev/zero of=$1 bs=1MB count=${IMAGE_SIZE}
+    echo "Created empty image $1 with size ${IMAGE_SIZE} MB."
+}
+
+function attach() {
+    if [[ -f "$1.lock" ]]; then
+        if [[ -d "$(${CAT} $1.lock)" ]]; then
+            echo "Image $1 has already been attached at $(${CAT} $1.lock)"
+            exit 1
+        fi
+        rm "$1.lock"
+    fi
+
+    if [[ "$(file "$1" | grep 'FAT' | wc -l)" -eq "0" ]]; then
+        echo "No FAT FileSystem on the image. Format one."
+        ${MKFAT} $1
+    fi
+
+    mount_dir=""
+    if [[ "x${UNAME}" -eq "xLinux" ]]; then
+        echo "Use udisk2 to mount image $1."
+        local loop_device=$(udisksctl loop-setup -f "$1" | grep -o -e '/dev/loop[0-9]*')
+        if [[ -z "${loop_device}" ]]; then
+            echo "Error mount image $1 to a loop device."
+            exit 2
+        fi
+
+        mount_dir=$(udisksctl mount -b ${loop_device} | grep -o -e '/run/media/.*[0-9A-Za-z]')
+        if [[ -z "${mount_dir}" ]]; then
+            echo "Error mount image $1."
+            udisksctl loop-delete -b ${loop_device}
+            if [[ $? -ne 0 ]]; then
+                echo "Failed to delete loop device ${loop_device}, you may need to manually delete it."
+            fi
+            exit 3
+        fi
+        echo "Image $1 mount on ${mount_dir}"
+    fi
+    echo ${mount_dir} > "$1.lock"
+}
+
+function detach() {
+    if [[ ! -f "$1.lock" ]]; then
+        echo "Image $1 has not attached yet or lock file missing."
+        exit 1
+    fi
+    mount_dir=$(${CAT} "$1.lock")
+    if [[ -z "${mount_dir}" ]]; then
+        echo "Lock file empty, must be a mistake."
+        exit 2
+    fi
+
+    if [[ ! -d $(${CAT} "$1.lock") ]]; then
+        echo "mount point "$(${CAT} "$1.lock")" not exitsed."
+        rm "$1.lock"
+        exit 3
+    fi
+
+    if [[ "x${UNAME}" -eq "xLinux" ]]; then
+        local loop_device=$(findmnt -o source -n -M ${mount_dir})
+        umount ${mount_dir}
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to unmount ${mount_dir}, you may need to manually unmount it."
+        else
+            rm "$1.lock"
+        fi
+
+        if [[ -z ${loop_device} ]]; then
+            echo "Loop device not found by findmnt."
+            exit 4
+        fi
+        udisksctl loop-delete -b ${loop_device}
+        if [[ $? -ne 0 ]]; then
+            echo "Failed to delete loop device ${loop_device}, you may need to manually delete it."
+        fi
+    fi
+    echo "Detached image file $1 mount at ${mount_dir}"
+}
+
+#usage: ./img_utils exec HD.img command
+function exec() {
+    if [[ ! -f "$1.lock" ]]; then
+        echo "Image $1 is not mounted."
+        exit 1
+    fi
+    local mount_dir=$(${CAT} "$1.lock")
+    if [[ ! -d ${mount_dir} || -z ${mount_dir} ]]; then
+        echo "Mount dir is invalidate."
+        exit 2
+    fi
+    cwd=$(pwd)
+    cd ${mount_dir} && eval $2
+    re=$?
+    cd $(pwd)
+    return $re
+}
+
+# usage: ./img_utils copy a.out HD.img ./a/b/c/
+function copy() {
+    fn=$(readlink -f $1)
+    exec $2 "cp \"$fn\" \"./$3\""
+    return $?
+}
+
+# usage: ./img_utils sync d/ HD.img /a/b/c/
+function sync() {
+    p=$(readlink -f $1)
+    l=$(echo $1 | sed -e "s/^.*\(.\)$/\1/")
+    if [[ "$l" == "/" ]]; then
+        p=$p"/"
+    fi
+    exec $2 "rsync -avh --progress \"$p\" \"./$3\""
+    return $?
+}
+
+
+
+"$@"

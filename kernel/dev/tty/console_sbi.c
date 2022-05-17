@@ -68,8 +68,7 @@ static inline void write_buffer(char data) {
     wakeup(&cons.count);
 }
 
-int console_write(file_t *file, const char *buffer, size_t offset,
-                  size_t len) {
+int console_write(file_t *file, const char *buffer, size_t offset, size_t len) {
     sleeplock_acquire(&cons.w_lock);
     for (int i = 0; i < len; i++) {
         SBI_putchar(buffer[i]);
@@ -77,17 +76,7 @@ int console_write(file_t *file, const char *buffer, size_t offset,
     sleeplock_release(&cons.w_lock);
 }
 
-int console_read(file_t *file, char *buffer, size_t offset,
-                 size_t len) {}
-
-int init_console(dev_driver_t *drv) {
-    cons.tail = cons.head = cons.buffer;
-    cons.count            = 0;
-    spinlock_init(&cons.r_lock);
-    sleeplock_init(&cons.w_lock);
-    // setup vfs
-    return 0;
-}
+int console_read(file_t *file, char *buffer, size_t offset, size_t len) {}
 
 static inode_ops_t inode_ops = {
     .link = NULL, .lookup = NULL, .mkdir = NULL, .rmdir = NULL, .unlink = NULL};
@@ -102,6 +91,22 @@ static file_ops_t file_ops = {
     .close  = NULL,
     .seek   = NULL,
 };
+
+int init_console(dev_driver_t *drv) {
+    cons.tail = cons.head = cons.buffer;
+    cons.count            = 0;
+    spinlock_init(&cons.r_lock);
+    sleeplock_init(&cons.w_lock);
+    // setup vfs
+    inode_t *inode  = vfs_alloc_inode(NULL);
+    inode->i_f_op   = &file_ops;
+    inode->i_op     = &inode_ops;
+    inode->i_dev[0] = 1;
+    inode->i_dev[1] = 1;
+
+    vfs_link_inode(inode, vfs_get_dentry("/dev", NULL), "tty");
+    return 0;
+}
 
 dev_driver_t console = {
     .name             = "console",

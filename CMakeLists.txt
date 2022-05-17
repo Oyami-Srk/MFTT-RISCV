@@ -76,5 +76,10 @@ ADD_LIBRARY(init_code STATIC init/package.S)
 SET_SOURCE_FILES_PROPERTIES(init/package.S PROPERTIES LANGUAGE ASM)
 SET_SOURCE_FILES_PROPERTIES(init/package.S OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/init.elf)
 TARGET_COMPILE_DEFINITIONS(init_code PRIVATE INIT_ELF="${CMAKE_BINARY_DIR}/init.elf")
-
 # End of init
+
+# Generate HD.img
+SET(BUILD_IMAGE ${PROJECT_SOURCE_DIR}/tools/scripts/build_image.sh)
+SET(DISK_IMAGE fs.img)
+ADD_CUSTOM_TARGET(fs.img)
+# End of HD.img

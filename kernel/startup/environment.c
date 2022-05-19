@@ -12,4 +12,5 @@ void init_env() {
     spinlock_init(&env.ticks_lock);
     spinlock_init(&env.proc_lock);
     env.driver_list_head = (list_head_t)LIST_HEAD_INIT(env.driver_list_head);
+    env.mem_sysmaps      = (list_head_t)LIST_HEAD_INIT(env.mem_sysmaps);
 }

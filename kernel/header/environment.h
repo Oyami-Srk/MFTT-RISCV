@@ -31,7 +31,8 @@ struct __env_t {
     spinlock_t ticks_lock;
     /* Memory */
     // TODO: consider move memory_info to here
-    pde_t kernel_pagedir;
+    pde_t       kernel_pagedir;
+    list_head_t mem_sysmaps;
     /* Process */
     // TODO: make process table dynamicly allocated and increase.
     // proc_t *proc[MAX_PROC];
@@ -44,6 +45,7 @@ struct __env_t {
     /* VFS */
     /* Device */
     list_head_t driver_list_head;
+    /* Interrupt */
 } __attribute__((aligned(16)));
 typedef struct __env_t env_t;
 

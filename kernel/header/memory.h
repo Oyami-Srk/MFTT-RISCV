@@ -7,7 +7,11 @@
 
 #include <common/types.h>
 #include <lib/bitset.h>
+#include <lib/linklist.h>
 #include <lib/sys/spinlock.h>
+
+/* Built-in memory maps */
+#define HARDWARE_VBASE 0xC0000000
 
 #define PAGING_MODE_BARE 0
 #define PAGING_MODE_SV32 1
@@ -97,6 +101,19 @@ struct memory_info_t {
 #define GET_ID_BY_PAGE(mem, page)                                              \
     (((char *)(page) - ((mem).memory_start)) / PG_SIZE)
 
+#define MEM_IO_READ(type, addr) (*(volatile type *)((uintptr_t)(addr)))
+#define MEM_IO_WRITE(type, addr, value)                                        \
+    do {                                                                       \
+        (*(volatile type *)((uintptr_t)(addr))) = ((type)(value));             \
+    } while (0)
+
+struct mem_sysmap {
+    char       *va, *pa;
+    size_t      size;
+    int         type;
+    list_head_t list;
+};
+
 void   init_memory();
 size_t memory_available();
 
@@ -109,5 +126,9 @@ char *kmalloc(size_t size);
 void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free);
 int  map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
                bool user, bool global);
+
+int   mem_sysmap(void *va, void *pa, size_t size, int type);
+int   mem_sysunmap(void *va);
+pde_t alloc_page_dir();
 
 #endif // __MEMORY_H__

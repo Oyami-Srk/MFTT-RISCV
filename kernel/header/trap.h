@@ -12,6 +12,7 @@
 #define TRAP_MODE          TRAP_MODE_DIRECT
 
 void init_trap();
+void init_plic(); // plic.c
 void handle_interrupt(uint64_t cause);
 
 void trap_push_off();
@@ -24,5 +25,7 @@ void yield();
 // user_trap.c
 void user_trap_return();
 void return_to_cpu_process();
+// plic.c
+int plic_register_irq(int irq);
 
 #endif // __TRAP_H__

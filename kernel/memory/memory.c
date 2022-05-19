@@ -177,7 +177,7 @@ static int memory_fdt_prober(uint32_t version, const char *node_name,
                     mem_addr |= CPU_TO_FDT32(*(addr_base - 1)) << 32;
                 mem_size = CPU_TO_FDT32(*size_base);
                 if (size_cells >= 2)
-                    mem_addr |= CPU_TO_FDT32(*(size_base - 1)) << 32;
+                    mem_size |= CPU_TO_FDT32(*(size_base - 1)) << 32;
                 kprintf("[FDT] Detected Memory @ 0x%x with Size 0x%x bytes.\n",
                         mem_addr, mem_size);
                 if (mem_size != 0 && discoverd == 0) {

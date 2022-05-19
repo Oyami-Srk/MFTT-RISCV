@@ -3,6 +3,8 @@
 //
 
 #include <driver/console.h>
+#include <environment.h>
+#include <lib/linklist.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <memory.h>
@@ -62,8 +64,10 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
     for (;;) {
         if ((pte = (pte_st *)walk_pages(page_dir, a, 1)) == NULL)
             return -1;
-        if (pte->fields.V)
-            kpanic("remap");
+        if (pte->fields.V) {
+            kprintf("[MEM] Paging rempa for VA 0x%lx => PA 0x%lx.\n", va, pa);
+            return -2;
+        }
         pte->fields.PhyPageNumber = (uint64_t)pa >> PG_SHIFT;
         pte->fields.Type          = type;
         pte->fields.V             = 1;
@@ -75,7 +79,6 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
         a += PG_SIZE;
         pa += PG_SIZE;
     }
-    return 0;
     return 0;
 }
 
@@ -105,27 +108,67 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
     }
 }
 
-// TODO: move to environment
-pde_t root_pagedir;
-void  init_paging(void *init_start, void *init_end) {
-     root_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
-     memset(root_pagedir, 0, PG_SIZE);
-     size_t init_pg_start = ((uint64_t)init_start) >> 30;
-     size_t init_pg_end   = ((uint64_t)init_end) >> 30;
-     // in position map
+void init_paging(void *init_start, void *init_end) {
+    env.kernel_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
+    memset(env.kernel_pagedir, 0, PG_SIZE);
+    size_t init_pg_start = ((uint64_t)init_start) >> 30;
+    size_t init_pg_end   = ((uint64_t)init_end) >> 30;
+    // in position map
 #if FALSE
-    map_pages(root_pagedir, init_start, init_start, init_end - init_start,
+    map_pages(env.kernel_pagedir, init_start, init_start, init_end - init_start,
               PTE_TYPE_RWX, false, true);
 #else
-    pte_st *p               = (pte_st *)&root_pagedir[2];
+    pte_st *p               = (pte_st *)&env.kernel_pagedir[2];
     p->fields.V             = 1;
     p->fields.PhyPageNumber = 0x80000000 >> PG_SHIFT;
     p->fields.Type          = PTE_TYPE_RWX;
     p->fields.G             = 1;
     p->fields.U             = 0;
 #endif
-    uint64_t satp =
-        ((uint64_t)root_pagedir / PG_SIZE) | ((uint64_t)PAGING_MODE_SV39 << 60);
+    uint64_t satp = ((uint64_t)env.kernel_pagedir / PG_SIZE) |
+                    ((uint64_t)PAGING_MODE_SV39 << 60);
     CSR_Write(satp, satp);
     flush_tlb_all();
+}
+
+// TODO: Currently sysmap only used in init. No lock here.
+int mem_sysmap(void *va, void *pa, size_t size, int type) {
+    struct mem_sysmap *sysmap =
+        (struct mem_sysmap *)kmalloc(sizeof(struct mem_sysmap));
+    memset(sysmap, 0, sizeof(struct mem_sysmap));
+    sysmap->va   = va;
+    sysmap->pa   = pa;
+    sysmap->type = type;
+    sysmap->size = size;
+    if (map_pages(env.kernel_pagedir, va, pa, size, type, false, true) != 0) {
+        return -1;
+    }
+    list_add(&sysmap->list, &env.mem_sysmaps);
+    return 0;
+}
+
+int mem_sysunmap(void *va) {
+    // TODO: impl this.
+    return 0;
+}
+
+pde_t alloc_page_dir() {
+    pde_t pgdir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
+    if (!pgdir)
+        return NULL;
+    memset(pgdir, 0, PG_SIZE);
+    // Setup big kernel pte from 0x80000000 ~ 0xC0000000
+    pte_st *p               = (pte_st *)&pgdir[2];
+    p->fields.V             = 1;
+    p->fields.PhyPageNumber = 0x80000000 >> PG_SHIFT;
+    p->fields.Type          = PTE_TYPE_RWX;
+    p->fields.G             = 1;
+    p->fields.U             = 0;
+    // Setup sysmap
+    list_foreach_entry(&env.mem_sysmaps, struct mem_sysmap, list, sysmap) {
+        // TODO: check result.
+        map_pages(pgdir, sysmap->va, sysmap->pa, sysmap->size, sysmap->type,
+                  false, true);
+    }
+    return pgdir;
 }

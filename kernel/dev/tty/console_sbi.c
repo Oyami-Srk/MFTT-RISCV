@@ -97,6 +97,7 @@ int init_console(dev_driver_t *drv) {
     cons.count            = 0;
     spinlock_init(&cons.r_lock);
     sleeplock_init(&cons.w_lock);
+
     // setup vfs
     inode_t *inode  = vfs_alloc_inode(NULL);
     inode->i_f_op   = &file_ops;

@@ -35,7 +35,13 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         // prober函数来进行调用。
         init_fdt(fdt_addr);
 
+        void *base = 0x10001000;
+        for (; base <= 0x10008000; base += 0x1000) {
+            kprintf("0x%lx : .0x%lx.\n", base, *((uint32_t *)base));
+        }
+
         init_memory();
+        init_plic();
         init_proc();
         init_vfs();
 

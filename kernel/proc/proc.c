@@ -69,16 +69,13 @@ proc_t *proc_alloc() {
     proc->kernel_stack = page_alloc(1, PAGE_TYPE_SYSTEM);
     memset(proc->kernel_stack, 0, PG_SIZE);
     proc->kernel_sp = proc->kernel_stack + PG_SIZE;
-    proc->page_dir  = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
-    memset(proc->page_dir, 0, PG_SIZE);
-    // TODO: Set kernel pte
-    pte_st *p               = (pte_st *)&proc->page_dir[2];
-    p->fields.V             = 1;
-    p->fields.PhyPageNumber = 0x80000000 >> PG_SHIFT;
-    p->fields.Type          = PTE_TYPE_RWX;
-    p->fields.G             = 1;
-    p->fields.U             = 0;
-    proc->status            = PROC_STATUS_NORMAL;
+
+    proc->page_dir = alloc_page_dir();
+    if (!proc->page_dir) {
+        spinlock_release(&proc->lock);
+        return NULL;
+    }
+    proc->status = PROC_STATUS_NORMAL;
 
     proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
     proc->kernel_task_context.ra = (uintptr_t)user_trap_return;

@@ -53,7 +53,7 @@ int plic_register_irq(int irq) {
     }
 }
 
-void plic_end() {
+void plic_end(int irq) {
     // Complete the interrupt
 }
 

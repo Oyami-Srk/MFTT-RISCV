@@ -5,7 +5,7 @@
 #ifndef __SBI_H__
 #define __SBI_H__
 
-#include "common/types.h"
+#include <common/types.h>
 
 #define SBI_SET_TIMER 0
 #define SBI_PUTCHAR   1
@@ -13,6 +13,9 @@
 #define SBI_CLEAR_IPI 3
 #define SBI_SEND_IPI  4
 #define SBI_SHUTDOWN  8
+
+// RustSBI for K210
+#define SBI_SET_MIE 0x0A000005
 
 // uint64_t SBI_call(uint64_t ID, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
@@ -42,5 +45,7 @@ static inline void SBI_set_timer(uint64_t timer_value) {
 static inline void SBI_send_ipi(uint64_t hart_mask, uint64_t hart_mask_base) {
     SBI_call(SBI_SEND_IPI, hart_mask, hart_mask_base, 0, 0);
 }
+
+static inline void SBI_set_mie() { SBI_call(SBI_SET_MIE, 0, 0, 0, 0); }
 
 #endif // __SBI_H__

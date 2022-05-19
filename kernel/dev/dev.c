@@ -1,7 +1,7 @@
 //
 // Created by shiroko on 22-5-16.
 //
-#include <dev.h>
+#include <dev/dev.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/string.h>
@@ -23,7 +23,7 @@ int init_driver() {
                 goto out;
             }
         }
-        list_add(&((*drv)->list), head_driver);
+        list_add_tail(&((*drv)->list), head_driver);
     out:;
     }
     // init ordered list

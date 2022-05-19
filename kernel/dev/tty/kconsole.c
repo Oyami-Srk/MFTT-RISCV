@@ -1,9 +1,9 @@
 // FIXME: kconsole depends on SBI.
 
-#include "driver/console.h"
-#include "lib/stdlib.h"
-#include "lib/sys/SBI.h"
-#include "lib/sys/spinlock.h"
+#include <driver/console.h>
+#include <lib/stdlib.h>
+#include <lib/sys/SBI.h>
+#include <lib/sys/spinlock.h>
 
 spinlock_t kprintf_lock = {.lock = false, .cpu = 0};
 

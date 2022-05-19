@@ -1,10 +1,10 @@
-#include "lib/sys/SBI.h"
 #include <common/types.h>
-#include <dev.h>
+#include <dev/dev.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
+#include <lib/sys/SBI.h>
 #include <lib/sys/fdt.h>
 #include <memory.h>
 #include <proc.h>
@@ -34,11 +34,6 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         // init_fdt会遍历DTB中所有的子节点并从已经添加的FDT Prober中选择相应的
         // prober函数来进行调用。
         init_fdt(fdt_addr);
-
-        void *base = 0x10001000;
-        for (; base <= 0x10008000; base += 0x1000) {
-            kprintf("0x%lx : .0x%lx.\n", base, *((uint32_t *)base));
-        }
 
         init_memory();
         init_plic();

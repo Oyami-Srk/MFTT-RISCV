@@ -32,7 +32,7 @@ typedef struct __dev_driver_t {
     static dev_driver_t *__ptr##driver                                         \
         __attribute__((used, section("DevDrivers"))) = &driver
 
-int                   init_driver();
+int          init_driver();
 inode_ops_t *get_driver_inode_ops(uint8_t dev_id);
 file_ops_t  *get_driver_file_ops(uint8_t dev_id);
 

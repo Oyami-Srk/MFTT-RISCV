@@ -3,14 +3,16 @@
 //
 
 #include "./plic.h"
-#include "lib/sys/SBI.h"
 #include <common/types.h>
 #include <configs.h>
+#include <lib/sys/SBI.h>
 #include <riscv.h>
 #include <scheduler.h>
 #include <trap.h>
 
 extern void timer_tick(); // timer.c
+
+static interrupt_handler_t int_handlers[MAX_INTERRUPT] = {0};
 
 void handle_interrupt(uint64_t cause) {
     if (cause == 5) {
@@ -40,6 +42,43 @@ void handle_interrupt(uint64_t cause) {
         // according to priviliged 1.10, cause = 9 is Supervisor ext-int
 #endif
         int irq = plic_begin();
-        plic_end();
+        if (irq) {
+            if (int_handlers[irq]) {
+                int _result = (int_handlers[irq])();
+                // TODO: validate interrupt result
+            }
+            plic_end(irq);
+        }
+
+#if USE_SOFT_INT_COMP
+        CSR_RWAND(sip, ~2); // clear pending bit
+        SBI_set_mie();
+#endif
     }
+}
+
+int interrupt_try_reg(int interrupt, interrupt_handler_t handler) {
+    if (interrupt >= MAX_INTERRUPT)
+        return -2;
+    if (int_handlers[interrupt] == NULL) {
+        int_handlers[interrupt] = handler;
+        return 0;
+    } else {
+        if (int_handlers[interrupt] == handler)
+            return 0;
+        return -1;
+    }
+}
+
+int interrupt_try_unreg(int interrupt, interrupt_handler_t handler) {
+    if (interrupt >= MAX_INTERRUPT)
+        return -2;
+    if (int_handlers[interrupt]) {
+        if (int_handlers[interrupt] == handler) {
+            int_handlers[interrupt] = NULL;
+            return 0;
+        }
+        return -1;
+    }
+    return 0;
 }

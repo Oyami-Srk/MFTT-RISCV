@@ -31,6 +31,6 @@
      context * PLIC_MISC_CONTEXT_SIZE)
 
 int  plic_begin(); // return irq
-void plic_end();
+void plic_end(int irq);
 
 #endif // __INTERRUPT_PLIC_H__

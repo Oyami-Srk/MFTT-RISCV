@@ -4,7 +4,7 @@
 
 #include "./virtio.h"
 #include <common/types.h>
-#include <dev.h>
+#include <dev/dev.h>
 #include <driver/console.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
@@ -18,6 +18,14 @@ static struct virtio_mmio_info_t {
     int    interrupt, interrupt_parent;
 } virtio_mmio_info[VIRTIO_MMIO_MAX_BUS];
 static int virtio_mmio_bus_count = 0;
+
+struct virtio_mmio_setup_t {
+    int                    device;
+    virtio_setup_handler_t handler;
+    list_head_t            list;
+};
+
+static list_head_t setup_handlers = (list_head_t)LIST_HEAD_INIT(setup_handlers);
 
 // TODO: impl vfs for mmio.
 int virtio_mmio_write(file_t *file, const char *buffer, size_t offset,
@@ -39,6 +47,21 @@ static file_ops_t file_ops = {
     .seek   = NULL,
 };
 
+int virtio_register_device(int device, virtio_setup_handler_t setup_handler) {
+    list_foreach_entry(&setup_handlers, struct virtio_mmio_setup_t, list,
+                       setup) {
+        if (setup->device == device)
+            return -1;
+    }
+    struct virtio_mmio_setup_t *setup = (struct virtio_mmio_setup_t *)kmalloc(
+        sizeof(struct virtio_mmio_setup_t));
+    memset(setup, 0, sizeof(struct virtio_mmio_setup_t));
+    setup->device  = device;
+    setup->handler = setup_handler;
+
+    list_add(&setup->list, &setup_handlers);
+}
+
 int init_virtio_mmio(dev_driver_t *drv) {
     kprintf("[MMIO] Virtio.MMIO Start initialize.\n");
     for (int i = 0; i < virtio_mmio_bus_count; i++) {
@@ -49,22 +72,34 @@ int init_virtio_mmio(dev_driver_t *drv) {
             kprintf("[MMIO] Cannot map MMIO Bus from 0x%lx to 0x%lx.\n",
                     info->pa, vbase_addr);
             continue;
-        } else
-            kprintf("[MMIO] Mapped MMIO Bus from 0x%lx to 0x%lx.\n", info->pa,
-                    vbase_addr);
-        flush_tlb_all();
-        if (vbase_addr == 0xD0001000) {
-            char c = *vbase_addr;
-            kprintf("::%c.", c);
         }
+        flush_tlb_all();
+        if (MEM_IO_READ(uint32_t, vbase_addr + VIRTIO_MMIO_MAGIC_VALUE) !=
+                VIRTIO_MMIO_MAGIC ||
+            MEM_IO_READ(uint32_t, vbase_addr + VIRTIO_MMIO_VENDOR_ID) !=
+                VIRTIO_MMIO_VENDOR_QEMU ||
+            MEM_IO_READ(uint32_t, vbase_addr + VIRTIO_MMIO_VERSION) != 1) {
+            kprintf("[MMIO] MMIO Bus at 0x%lx is invalid.\n", info->pa);
+            continue;
+        }
+        int device = MEM_IO_READ(uint32_t, vbase_addr + VIRTIO_MMIO_DEVICE_ID);
+        if (device)
+            list_foreach_entry(&setup_handlers, struct virtio_mmio_setup_t,
+                               list, setup) {
+                if (device == setup->device)
+                    setup->handler(vbase_addr, info->interrupt,
+                                   info->interrupt_parent);
+            }
     }
+    // Once finished setup, free all recorded setup handler
+    kprintf("[MMIO] All Virtio.MMIO Device setup complete.\n");
     return 0;
 }
 
 dev_driver_t virtio_mmio = {
     .name             = "virtio_mmio",
     .init             = init_virtio_mmio,
-    .loading_sequence = 0,
+    .loading_sequence = 2,
     .dev_id           = 9,
     .major_ver        = 0,
     .minor_ver        = 1,

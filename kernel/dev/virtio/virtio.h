@@ -11,6 +11,8 @@
 #define VIRTIO_MMIO_MAGIC       0x74726976
 #define VIRTIO_MMIO_VENDOR_QEMU 0x554D4551
 
+// https://docs.oasis-open.org/virtio/virtio/v1.2/csd01/virtio-v1.2-csd01.html#x1-2160005
+// MAX_DEVICE_ID is 42 for current version.
 #define VIRTIO_DEVICE_NET  1
 #define VIRTIO_DEVICE_DISK 2
 
@@ -51,5 +53,8 @@
 #define VIRTIO_RING_F_EVENT_IDX     29
 
 // Functions for register virtio device
-void virtio_disk_set(char *baddr, uint8_t interrupt, uint8_t interrupt_parent);
+typedef void (*virtio_setup_handler_t)(char *addr, int interrupt,
+                                       int interrupt_parent);
+int virtio_register_device(int device, virtio_setup_handler_t setup_handler);
+
 #endif // __VIRTIO_VIRTIO_H__

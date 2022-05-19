@@ -1,3 +1,6 @@
 [submodule "tools/RISCV-GDB-Paging"]
 	path = tools/RISCV-GDB-Paging
 	url = https://github.com/Oyami-Srk/RISCV-GDB-Paging
+[submodule "SBI/qemu/rustsbi-qemu"]
+	path = SBI/qemu/rustsbi-qemu
+	url = https://github.com/rustsbi/rustsbi-qemu

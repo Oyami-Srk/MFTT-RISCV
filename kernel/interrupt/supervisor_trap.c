@@ -2,11 +2,11 @@
 // Created by shiroko on 22-4-30.
 //
 
-#include "lib/sys/SBI.h"
 #include <common/types.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>
+#include <lib/sys/SBI.h>
 #include <riscv.h>
 #include <trap.h>
 

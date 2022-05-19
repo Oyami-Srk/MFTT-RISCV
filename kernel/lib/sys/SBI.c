@@ -1,7 +1,7 @@
 //
 // Created by shiroko on 22-4-18.
 //
-#include "lib/sys/SBI.h"
+#include <lib/sys/SBI.h>
 
 #if FALSE
 uint64_t SBI_call(uint64_t ID, uint64_t arg1, uint64_t arg2, uint64_t arg3,

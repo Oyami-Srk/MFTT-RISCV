@@ -78,7 +78,7 @@ void virtio_queue_desc_free(virtio_mmio_queue_t *queue, int idx) {
         kprintf("[MMIO] MMIO Queue descriptor id execeed. Weired.\n");
         return;
     }
-    if (check_bit(queue->desc_used_map, idx)) {
+    if (check_bit(queue->desc_used_map, idx) == 0) {
         kprintf("[MMIO] MMIO Queue descriptor id already be free. Weired\n");
         return;
     }
@@ -91,7 +91,7 @@ void virtio_queue_desc_free(virtio_mmio_queue_t *queue, int idx) {
 int virtio_queue_desc_alloc_some(virtio_mmio_queue_t *queue, int num,
                                  int *idxs) {
     if (num >= VIRTIO_MMIO_QUEUE_NUM_VALUE) {
-        kprintf("[DISK] MMIO Requires too many descriptos. (got %d expected "
+        kprintf("[MMIO] MMIO Requires too many descriptos. (got %d expected "
                 "smaller than %d.)\n",
                 num, VIRTIO_MMIO_QUEUE_NUM_VALUE);
         return -1;

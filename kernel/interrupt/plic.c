@@ -33,6 +33,30 @@ void init_plic() {
 
 int plic_begin() {
     // Claim the interrupt and return irq
+    int context =
+#if USE_SOFT_INT_COMP
+        // Machine context offset is 0
+        cpuid() * 2 + 0;
+#else
+        // Supervisor context offset is 1
+        cpuid() * 2 + 1; // NOLINT(cppcoreguidelines-narrowing-conversions)
+#endif
+    return MEM_IO_READ(uint32_t,
+                       PLIC_MISC_ADDR_FOR(context) + PLIC_MISC_CLAIM_COMPLETE);
+}
+
+void plic_end(int irq) {
+    // Complete the interrupt
+    int context =
+#if USE_SOFT_INT_COMP
+        // Machine context offset is 0
+        cpuid() * 2 + 0;
+#else
+        // Supervisor context offset is 1
+        cpuid() * 2 + 1; // NOLINT(cppcoreguidelines-narrowing-conversions)
+#endif
+    MEM_IO_WRITE(uint32_t,
+                 PLIC_MISC_ADDR_FOR(context) + PLIC_MISC_CLAIM_COMPLETE, irq);
 }
 
 int plic_register_irq(int irq) {
@@ -51,10 +75,7 @@ int plic_register_irq(int irq) {
 #endif
         PLIC_ENABLE_INT_FOR(context, irq);
     }
-}
-
-void plic_end(int irq) {
-    // Complete the interrupt
+    return 0;
 }
 
 // PLIC FDT Prober

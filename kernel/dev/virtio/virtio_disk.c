@@ -111,6 +111,8 @@ void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
     if (interrupt_try_reg(interrupt, virtio_disk_interrupt_handler) != 0)
         kpanic("Disk interrupt already been registered.");
 
+    plic_register_irq(interrupt);
+
     // Driver OK
     MEM_IO_WRITE(uint32_t, ioaddr + VIRTIO_MMIO_STATUS,
                  MEM_IO_READ(uint32_t, ioaddr + VIRTIO_MMIO_STATUS) |
@@ -154,11 +156,12 @@ void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
     desc_table[idx[1]].length = size;
     if (func == 0)
         // we read, device write only
-        desc_table[idx[0]].flags = VIRTIO_MMIO_QUEUE_DESC_F_WRITE_ONLY;
+        desc_table[idx[1]].flags = VIRTIO_MMIO_QUEUE_DESC_F_WRITE_ONLY;
     else
         // we write, device read only
-        desc_table[idx[0]].flags = 0;
+        desc_table[idx[1]].flags = 0;
     desc_table[idx[1]].next = idx[2];
+    desc_table[idx[1]].flags |= VIRTIO_MMIO_QUEUE_DESC_F_NEXT;
 
     desc_table[idx[2]].addr   = (uintptr_t)(&virtio_disk.trace[idx[0]].status);
     desc_table[idx[2]].length = 1;

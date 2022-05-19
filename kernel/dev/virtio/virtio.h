@@ -6,6 +6,7 @@
 #define __VIRTIO_VIRTIO_H__
 
 #include <common/types.h>
+#include <lib/bitset.h>
 
 #define VIRTIO_MMIO_MAX_BUS     32
 #define VIRTIO_MMIO_MAGIC       0x74726976
@@ -66,15 +67,15 @@ typedef struct {
 #define VIRTIO_MMIO_QUEUE_DESC_F_INDIRECT   4
     uint16_t flags;
     uint16_t next;
-} virtio_mmio_queue_desc_t;
+} virtio_mmio_queue_desc_t; // size: 16 bytes
 
 typedef struct {
 #define VIRTIO_MMIO_QUEUE_AVAIL_F_NO_INTERRUPT 1
     uint16_t flags;
     uint16_t idx;
     uint16_t ring[VIRTIO_MMIO_QUEUE_NUM_VALUE];
-    uint16_t used_event; // Only if virtio_f_event_idx
-} virtio_mmio_queue_avail_t;
+    // uint16_t used_event;     // Only if virtio_f_event_idx
+} virtio_mmio_queue_avail_t; // size: 6 bytes + NUM * 2 bytes = 22 bytes
 
 typedef struct {
 #define VIRTIO_MMIO_QUEUE_USED_F_NO_NOTIFY 1
@@ -84,12 +85,35 @@ typedef struct {
         uint32_t id;
         uint32_t len;
     } ring[VIRTIO_MMIO_QUEUE_NUM_VALUE];
-    uint16_t avail_event; // Only if ...
+    // uint16_t avail_event; // Only if ...
 } virtio_mmio_queue_used_t;
+
+typedef struct {
+    virtio_mmio_queue_desc_t  desc[VIRTIO_MMIO_QUEUE_NUM_VALUE];
+    virtio_mmio_queue_avail_t avail;
+    // There is a align for used, for virtio PCI, align is 4096.
+    // http://docs.oasis-open.org/virtio/virtio/v1.0/csprd01/listings/virtio_ring.h
+    // But we use mmio? seemingly align is 4096 too.
+    virtio_mmio_queue_used_t used __attribute__((aligned(4096)));
+} virtio_mmio_ring_t;
+
+typedef struct {
+    // for find free slot
+    bitset_t desc_used_map[BITSET_ARRAY_SIZE_FOR(VIRTIO_MMIO_QUEUE_NUM_VALUE)];
+    uint32_t used_idx; // what we looked
+    virtio_mmio_ring_t *io_ring;
+} virtio_mmio_queue_t;
 
 // Functions for register virtio device
 typedef void (*virtio_setup_handler_t)(char *addr, int interrupt,
                                        int interrupt_parent);
 int virtio_register_device(int device, virtio_setup_handler_t setup_handler);
+
+// Function for ring's descriptor
+int  virtio_queue_desc_alloc(virtio_mmio_queue_t *queue);
+int  virtio_queue_desc_alloc_some(virtio_mmio_queue_t *queue, int num,
+                                  int *idxs);
+void virtio_queue_desc_free(virtio_mmio_queue_t *queue, int idx);
+void virtio_queue_desc_free_chain(virtio_mmio_queue_t *queue, int idx);
 
 #endif // __VIRTIO_VIRTIO_H__

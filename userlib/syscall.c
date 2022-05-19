@@ -58,3 +58,6 @@ int write(int fd, char *buf, size_t count) {
 int read(int fd, const char *buf, size_t count) {
     return SYSCALL(SYS_read, fd, (uintptr_t)buf, count);
 }
+
+// For developments tests.
+int syscall_test(uint64_t a1, uint64_t a2) { return SYSCALL(SYS_test, a1, a2); }

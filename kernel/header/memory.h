@@ -88,7 +88,7 @@ struct memory_info_t {
     char  *usable_memory_end; // Buddy map located on the end of memory
     size_t page_count;
 
-    bitset *buddy_map[MAX_BUDDY_ORDER]; // Bitmap for each order of buddy
+    bitset_t *buddy_map[MAX_BUDDY_ORDER]; // Bitmap for each order of buddy
     struct page_info *pages_info;
     block_list       *free_list[MAX_BUDDY_ORDER];
     size_t            free_count[MAX_BUDDY_ORDER];

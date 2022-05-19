@@ -5,8 +5,22 @@
 #ifndef __DEV_BUFFERED_IO_H__
 #define __DEV_BUFFERED_IO_H__
 
-typedef struct __buffered_io_t {
+// From xv6 buffered io
 
+#include <common/types.h>
+#include <lib/linklist.h>
+#include <lib/sys/sleeplock.h>
+
+#define BUFFER_SIZE 512
+
+typedef struct __buffered_io_t {
+    bool     valid;
+    uint64_t addr;
+    char     data[BUFFER_SIZE];
+
+    int         reference;
+    sleeplock_t lock;
+    list_head_t list;
 } buffered_io_t;
 
 #endif // __DEV_BUFFERED_IO_H__

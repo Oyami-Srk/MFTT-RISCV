@@ -24,7 +24,7 @@ void init_memory() {
     size_t max_block_size = (1 << (MAX_BUDDY_ORDER - 1)) *
                             PG_SIZE; // minimal allocate unit is a page.
     memory_info.page_count   = pg_count;
-    memory_info.buddy_map[0] = (bitset *)ROUNDDOWN_WITH(
+    memory_info.buddy_map[0] = (bitset_t *)ROUNDDOWN_WITH(
         0x10, (memory_info.memory_end - buddy_table_size));
     memory_info.pages_info = (struct page_info *)ROUNDDOWN_WITH(
         0x10, ((char *)(memory_info.buddy_map[0]) - pg_info_size));
@@ -45,9 +45,9 @@ void init_memory() {
     memory_info.free_count[0] = 0;
     memory_info.free_list[0]  = (block_list *)NULL;
     for (int i = 0; i < MAX_BUDDY_ORDER - 1; i++) {
-        memory_info.buddy_map[i + 1] =
-            (bitset *)((memory_info.buddy_map[i]) + (pg_count >> (i + 1)) / 8);
-        memory_info.free_list[i + 1]  = (block_list *)NULL;
+        memory_info.buddy_map[i + 1] = (bitset_t *)((memory_info.buddy_map[i]) +
+                                                    (pg_count >> (i + 1)) / 8);
+        memory_info.free_list[i + 1] = (block_list *)NULL;
         memory_info.free_count[i + 1] = 0;
     }
 #if 0

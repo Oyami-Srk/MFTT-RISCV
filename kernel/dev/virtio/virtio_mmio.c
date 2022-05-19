@@ -9,6 +9,7 @@
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <memory.h>
+#include <proc.h>
 #include <riscv.h>
 #include <vfs.h>
 
@@ -60,6 +61,61 @@ int virtio_register_device(int device, virtio_setup_handler_t setup_handler) {
     setup->handler = setup_handler;
 
     list_add(&setup->list, &setup_handlers);
+}
+
+int virtio_queue_desc_alloc(virtio_mmio_queue_t *queue) {
+    int idx = (int)set_first_unset_bit(
+        queue->desc_used_map,
+        BITSET_ARRAY_SIZE_FOR(VIRTIO_MMIO_QUEUE_NUM_VALUE));
+    if (idx >= VIRTIO_MMIO_QUEUE_NUM_VALUE)
+        return -1;
+    return idx;
+}
+
+void virtio_queue_desc_free(virtio_mmio_queue_t *queue, int idx) {
+    // FIXME: may be a panic?
+    if (idx >= VIRTIO_MMIO_QUEUE_NUM_VALUE) {
+        kprintf("[MMIO] MMIO Queue descriptor id execeed. Weired.\n");
+        return;
+    }
+    if (check_bit(queue->desc_used_map, idx)) {
+        kprintf("[MMIO] MMIO Queue descriptor id already be free. Weired\n");
+        return;
+    }
+    queue->io_ring->desc[idx].addr = 0;
+    clear_bit(queue->desc_used_map, idx);
+    // application may sleep on this
+    wakeup(queue->desc_used_map);
+}
+
+int virtio_queue_desc_alloc_some(virtio_mmio_queue_t *queue, int num,
+                                 int *idxs) {
+    if (num >= VIRTIO_MMIO_QUEUE_NUM_VALUE) {
+        kprintf("[DISK] MMIO Requires too many descriptos. (got %d expected "
+                "smaller than %d.)\n",
+                num, VIRTIO_MMIO_QUEUE_NUM_VALUE);
+        return -1;
+    }
+    for (int i = 0; i < num; i++) {
+        idxs[i] = virtio_queue_desc_alloc(queue);
+        if (idxs[i] < 0) {
+            for (int j = 0; j < i; j++)
+                virtio_queue_desc_free(queue, idxs[j]);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+void virtio_queue_desc_free_chain(virtio_mmio_queue_t *queue, int idx) {
+    for (;;) {
+        virtio_queue_desc_free(queue, idx);
+        if (queue->io_ring->desc[idx].flags & VIRTIO_MMIO_QUEUE_DESC_F_NEXT)
+            // have next
+            idx = queue->io_ring->desc[idx].next;
+        else
+            break;
+    }
 }
 
 int init_virtio_mmio(dev_driver_t *drv) {

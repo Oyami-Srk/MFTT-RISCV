@@ -93,11 +93,13 @@ sysret_t sys_write(struct trap_context *trapframe) {
 }
 
 // Syscall table
+extern sysret_t sys_test(struct trap_context *);
 // clang-format off
 static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_ticks] = sys_ticks,
     [SYS_print] = sys_print,
     [SYS_sleep] = sys_sleep,
+    [SYS_test] = sys_test, // inside test.c, remove when stable
 
     [SYS_openat] = sys_open,
     [SYS_close] = sys_close,

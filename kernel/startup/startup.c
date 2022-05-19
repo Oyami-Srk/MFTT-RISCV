@@ -37,13 +37,13 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
 
         init_memory();
         init_plic();
-        init_proc();
         init_vfs();
 
         int ret = 0;
         if ((ret = init_driver()) != 0)
             kpanic("Devices' driver cannot be initialized. Code: %d", ret);
 
+        init_proc();
         started = 1;
     } else {
         // Salve cores

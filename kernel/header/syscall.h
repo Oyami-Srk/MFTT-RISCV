@@ -16,6 +16,7 @@ typedef long long sysret_t;
 #define SYS_ticks 1
 #define SYS_print 2
 #define SYS_sleep 3
+#define SYS_test  2333
 #endif
 
 #ifdef SYSCALL_USE_OSCOMP

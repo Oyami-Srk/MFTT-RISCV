@@ -7,10 +7,17 @@
 #include <common/types.h>
 #include <dev/dev.h>
 #include <driver/console.h>
+#include <lib/bitset.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
+#include <lib/sys/sleeplock.h>
 #include <lib/sys/spinlock.h>
 #include <memory.h>
+#include <proc.h>
+#include <trap.h>
+
+#define VIRTIO_BLK_T_IN  0 // read the disk
+#define VIRTIO_BLK_T_OUT 1 // write the disk
 
 typedef struct {
     uint32_t type; // 0: Read; 1: Write; 4: Flush; 11: Discard; 13: Write zeros
@@ -21,11 +28,20 @@ typedef struct {
 } virtio_block_request_t;
 
 static struct {
-    char                     *io_addr;
-    bool                      initialized;
-    spinlock_t                lock;
-    virtio_mmio_queue_desc_t *queue_desc; // PhyAddr
-} virtio_disk = {.initialized = false, .io_addr = NULL};
+    char               *io_addr;
+    bool                initialized;
+    virtio_mmio_queue_t queue;
+    struct {
+        // TODO: link to buffered io
+        char   *addr;
+        size_t  size;
+        uint8_t status;
+        uint8_t ok;
+    } trace[VIRTIO_MMIO_QUEUE_NUM_VALUE];
+    spinlock_t lock;
+} virtio_disk = {.initialized = false};
+
+static int virtio_disk_interrupt_handler(void);
 
 void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
     kprintf("[DISK] Setup Virtio Disk at MMIO Bus 0x%lx.\n", ioaddr);
@@ -34,6 +50,7 @@ void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
                 "hard to support many.\n");
         return;
     }
+    memset(&virtio_disk, 0, sizeof(virtio_disk));
     virtio_disk.initialized = true;
     spinlock_init(&virtio_disk.lock);
     spinlock_acquire(&virtio_disk.lock);
@@ -75,21 +92,122 @@ void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
                 max_num, VIRTIO_MMIO_QUEUE_NUM_VALUE);
         goto failed;
     }
+
     MEM_IO_WRITE(uint32_t, ioaddr + VIRTIO_MMIO_QUEUE_NUM,
                  VIRTIO_MMIO_QUEUE_NUM_VALUE);
-    virtio_disk.queue = page_alloc()
+    // setup io ring
+    size_t              io_ring_size = PG_ROUNDUP(sizeof(virtio_mmio_ring_t));
+    virtio_mmio_ring_t *io_ring      = (virtio_mmio_ring_t *)page_alloc(
+             io_ring_size / PG_SIZE, PAGE_TYPE_HARDWARE);
+    memset(io_ring, 0, io_ring_size);
 
-        // Driver OK
-        MEM_IO_WRITE(uint32_t, ioaddr + VIRTIO_MMIO_STATUS,
-                     MEM_IO_READ(uint32_t, ioaddr + VIRTIO_MMIO_STATUS) |
-                         (VIRTIO_CONFIG_S_DRIVER_OK));
+    MEM_IO_WRITE(uint32_t, ioaddr + VIRTIO_MMIO_QUEUE_PFN,
+                 ((uintptr_t)io_ring) >> PG_SHIFT);
+
+    virtio_disk.queue.io_ring  = io_ring;
+    virtio_disk.queue.used_idx = 0;
+
+    // setup interrupt
+    if (interrupt_try_reg(interrupt, virtio_disk_interrupt_handler) != 0)
+        kpanic("Disk interrupt already been registered.");
+
+    // Driver OK
+    MEM_IO_WRITE(uint32_t, ioaddr + VIRTIO_MMIO_STATUS,
+                 MEM_IO_READ(uint32_t, ioaddr + VIRTIO_MMIO_STATUS) |
+                     (VIRTIO_CONFIG_S_DRIVER_OK));
 
     spinlock_release(&virtio_disk.lock);
+    kprintf("[DISK] Setup Virtio Disk complete.\n");
     return;
 failed:
     virtio_disk.initialized = false;
     spinlock_release(&virtio_disk.lock);
 }
+
+// func: 0 is read, 1 is write. buf must be pa, size must be multiple of 512
+void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
+    spinlock_acquire(&virtio_disk.lock);
+    // legacy block device requires three descs:
+    // Type, data, result
+    int idx[3];
+    for (;;) {
+        if (virtio_queue_desc_alloc_some(&virtio_disk.queue, 3, idx) == 0)
+            break;
+        sleep(&virtio_disk.queue.desc_used_map, &virtio_disk.lock);
+    }
+    // setup descs
+    struct {
+        uint32_t type;
+        uint32_t rsvd;
+        uint64_t sector;
+    } buf0 = {.type   = func == 0 ? VIRTIO_BLK_T_IN : VIRTIO_BLK_T_OUT,
+              .rsvd   = 0,
+              .sector = addr};
+    // buf0 in kstack is directly mapped
+    virtio_mmio_queue_desc_t *desc_table = virtio_disk.queue.io_ring->desc;
+    desc_table[idx[0]].addr              = (uintptr_t)&buf0;
+    desc_table[idx[0]].length            = sizeof(buf0);
+    desc_table[idx[0]].flags             = VIRTIO_MMIO_QUEUE_DESC_F_NEXT;
+    desc_table[idx[0]].next              = idx[1];
+
+    desc_table[idx[1]].addr   = (uintptr_t)buf;
+    desc_table[idx[1]].length = size;
+    if (func == 0)
+        // we read, device write only
+        desc_table[idx[0]].flags = VIRTIO_MMIO_QUEUE_DESC_F_WRITE_ONLY;
+    else
+        // we write, device read only
+        desc_table[idx[0]].flags = 0;
+    desc_table[idx[1]].next = idx[2];
+
+    desc_table[idx[2]].addr   = (uintptr_t)(&virtio_disk.trace[idx[0]].status);
+    desc_table[idx[2]].length = 1;
+    desc_table[idx[2]].flags  = VIRTIO_MMIO_QUEUE_DESC_F_WRITE_ONLY;
+    desc_table[idx[2]].next   = 0;
+
+    virtio_disk.trace[idx[0]].status = 0;
+    virtio_disk.trace[idx[0]].ok     = 0;
+    virtio_disk.trace[idx[0]].addr   = (char *)addr;
+    virtio_disk.trace[idx[0]].size   = size;
+
+    // put into avail ring
+    virtio_mmio_queue_avail_t *avail = &virtio_disk.queue.io_ring->avail;
+    avail->ring[avail->idx % VIRTIO_MMIO_QUEUE_NUM_VALUE] = idx[0];
+    __sync_synchronize(); // make sure compiler not reorder.
+    avail->idx++;
+
+    // issue the queue
+    MEM_IO_WRITE(uint32_t, virtio_disk.io_addr + VIRTIO_MMIO_QUEUE_NOTIFY, 0);
+
+    // wait the interrupt
+    while (virtio_disk.trace[idx[0]].ok == 0) {
+        sleep(&virtio_disk.trace[idx[0]], &virtio_disk.lock);
+    }
+
+    // got data
+    virtio_queue_desc_free_chain(&virtio_disk.queue, idx[0]);
+
+    spinlock_release(&virtio_disk.lock);
+}
+
+static int virtio_disk_interrupt_handler(void) {
+    spinlock_acquire(&virtio_disk.lock);
+    uint32_t                 *used_idx = &virtio_disk.queue.used_idx;
+    virtio_mmio_queue_used_t *used     = &virtio_disk.queue.io_ring->used;
+
+    while ((*used_idx % VIRTIO_MMIO_QUEUE_NUM_VALUE) !=
+           (used->idx % VIRTIO_MMIO_QUEUE_NUM_VALUE)) {
+        int idx = used->ring[*used_idx].id;
+        if (virtio_disk.trace[idx].status != 0)
+            kpanic("Virtio disk status non-zero.");
+        virtio_disk.trace[idx].ok = 1;
+        wakeup(&virtio_disk.trace[idx]);
+        *used_idx = (*used_idx + 1) % VIRTIO_MMIO_QUEUE_NUM_VALUE;
+    }
+    spinlock_release(&virtio_disk.lock);
+}
+
+// Device setup for register.
 
 int init_virtio_mmio_disk(dev_driver_t *drv) {
     kprintf("[DISK] Register Virtio.MMIO disk setup handler.\n");
@@ -98,7 +216,7 @@ int init_virtio_mmio_disk(dev_driver_t *drv) {
 }
 
 dev_driver_t virtio_mmio_disk = {
-    .name             = "virtio_mmio_disk",
+    .name             = "virtio_mmio_disk_register",
     .init             = init_virtio_mmio_disk,
     .loading_sequence = 1, // load before actually virtio mmio setup.
     .dev_id           = 9 + 1,

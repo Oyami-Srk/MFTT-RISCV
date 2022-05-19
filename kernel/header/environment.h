@@ -36,10 +36,9 @@ struct __env_t {
     /* Process */
     // TODO: make process table dynamicly allocated and increase.
     // proc_t *proc[MAX_PROC];
-    proc_t proc[MAX_PROC];
-    size_t proc_count;
-    bitset
-        proc_bitmap[MAX_PROC / BITS_PER_BITSET]; // for fast finding empty slot
+    proc_t           proc[MAX_PROC];
+    size_t           proc_count;
+    bitset_t         proc_bitmap[BITSET_ARRAY_SIZE_FOR(MAX_PROC)];
     spinlock_t       proc_lock;
     scheduler_data_t scheduler_data;
     /* VFS */

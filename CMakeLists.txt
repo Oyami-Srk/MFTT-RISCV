@@ -49,7 +49,7 @@ SET(SRCS ${ASM_SRCS} ${C_SRCS})
 
 # Generate kernel.elf
 ADD_EXECUTABLE(kernel.elf ${SRCS})
-TARGET_INCLUDE_DIRECTORIES(kernel.elf PRIVATE "kernel/header")
+TARGET_INCLUDE_DIRECTORIES(kernel.elf SYSTEM PRIVATE "kernel/header")
 SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel.ld ")
 TARGET_LINK_LIBRARIES(kernel.elf init_code)
 ADD_DEPENDENCIES(kernel.elf init_code)

@@ -21,9 +21,12 @@ sysret_t sys_ticks(struct trap_context *trapframe) {
 
 #include <driver/console.h>
 sysret_t sys_print(struct trap_context *trapframe) {
+    // temporary set sum
+    CSR_RWOR(sstatus, SSTATUS_SUM);
     char *buffer = (char *)trapframe->a0;
     assert(buffer, "Print with null buffer.");
     kprintf("%s", buffer);
+    CSR_RWAND(sstatus, ~SSTATUS_SUM);
     return 0;
 }
 
@@ -44,13 +47,16 @@ sysret_t sys_sleep(struct trap_context *trapframe) {
 }
 
 sysret_t sys_open(struct trap_context *trapframe) {
-    int         fd       = (int)(trapframe->a0 & 0xFFFFFFFF);
-    const char *filename = (const char *)(trapframe->a1);
-    int         flags    = (int)(trapframe->a3 & 0xFFFFFFFF);
-    int         mode     = (int)(trapframe->a4 & 0xFFFFFFFF);
+    int   fd       = (int)(trapframe->a0 & 0xFFFFFFFF);
+    char *filename = ustrcpy_out((char *)(trapframe->a1));
+    if (!filename)
+        return -1;
+    int flags = (int)(trapframe->a3 & 0xFFFFFFFF);
+    int mode  = (int)(trapframe->a4 & 0xFFFFFFFF);
 
     int       new_fd = 1;
     dentry_t *dentry = vfs_get_dentry(filename, NULL);
+    kfree(filename);
     if (!dentry)
         return -1;
     file_t *file = vfs_open(dentry, mode);
@@ -75,21 +81,47 @@ sysret_t sys_close(struct trap_context *trapframe) {
 sysret_t sys_read(struct trap_context *trapframe) {
     int     fd    = (int)(trapframe->a0 & 0xFFFFFFFF);
     char   *buf   = (char *)(trapframe->a1);
-    size_t  count = (size_t)(trapframe->a2);
+    size_t  bytes = (size_t)(trapframe->a2);
     file_t *file  = myproc()->files[fd];
     if (!file)
         return -1;
-    return vfs_read(file, buf, file->f_offset, count);
+    char *kbuf = NULL;
+    if (bytes < PG_SIZE)
+        kbuf = (char *)kmalloc(bytes);
+    else
+        kbuf = (char *)page_alloc(PG_ROUNDUP(bytes), PAGE_TYPE_SYSTEM);
+    if (!kbuf)
+        return -1;
+    int r = vfs_read(file, kbuf, 0, bytes);
+    umemcpy(buf, kbuf, bytes);
+    if (bytes < PG_SIZE)
+        kfree(kbuf);
+    else
+        page_free(kbuf, PG_ROUNDUP(bytes));
+    return r;
 }
 
 sysret_t sys_write(struct trap_context *trapframe) {
     int         fd    = (int)(trapframe->a0 & 0xFFFFFFFF);
     const char *buf   = (const char *)(trapframe->a1);
-    size_t      count = (size_t)(trapframe->a2);
+    size_t      bytes = (size_t)(trapframe->a2);
     file_t     *file  = myproc()->files[fd];
     if (!file)
         return -1;
-    return vfs_write(file, buf, file->f_offset, count);
+    char *kbuf = NULL;
+    if (bytes < PG_SIZE)
+        kbuf = (char *)kmalloc(bytes);
+    else
+        kbuf = (char *)page_alloc(PG_ROUNDUP(bytes), PAGE_TYPE_SYSTEM);
+    if (!kbuf)
+        return -1;
+    umemcpy(kbuf, buf, bytes);
+    int r = vfs_write(file, kbuf, 0, bytes);
+    if (bytes < PG_SIZE)
+        kfree(kbuf);
+    else
+        page_free(kbuf, PG_ROUNDUP(bytes));
+    return r;
 }
 
 // Syscall table
@@ -114,7 +146,6 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
 
 void do_syscall(struct trap_context *trapframe) {
     // TODO: move sum mark into trap handler
-    CSR_RWOR(sstatus, SSTATUS_SUM);
     int syscall_id = (int)(trapframe->a7 & 0xFFFFFFFF);
     if (unlikely(syscall_id >= NELEM(syscall_table) ||
                  syscall_table[syscall_id] == NULL)) {
@@ -126,5 +157,4 @@ void do_syscall(struct trap_context *trapframe) {
     }
     // TODO: strace
     trapframe->a0 = syscall_table[syscall_id](trapframe);
-    CSR_RWAND(sstatus, ~SSTATUS_SUM);
 }

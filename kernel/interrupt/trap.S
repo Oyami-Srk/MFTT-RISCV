@@ -139,10 +139,11 @@ user_ret:
     /* Switch page table */
     ld t0, 0(a0)
     /* satp = (page_dir >> 12) | PAGING_MODE_SV39 << 60 */
+    /*
     srli t0, t0, 12
     li   t1, 8
     slli t1, t1, 60
-    or   t0, t0, t1
+    or   t0, t0, t1 */
     csrw satp, t0
     sfence.vma
 

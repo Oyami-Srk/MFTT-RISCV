@@ -20,6 +20,8 @@
         ((struct _rb_node *)n)->parent_and_color &= PARENT_MASK;               \
         ((struct _rb_node *)n)->parent_and_color |= (uint8_t)c;                \
     } while (0)
+#define BLACK(n) SET_COLOR(n, RB_BLACK)
+#define RED(n)   SET_COLOR(n, RB_RED)
 
 rb_node *rb_search(rb_node *x, uint64_t key) {
     while (x != NULL) {
@@ -31,136 +33,6 @@ rb_node *rb_search(rb_node *x, uint64_t key) {
             x = x->R;
     }
     return x;
-}
-
-rb_node *rb_detach(rb_node *x) {
-    rb_node *p = GET_PARENT(x);
-    if (p) {
-        if (p->L == x)
-            p->L = NULL;
-        else
-            p->R = NULL;
-    }
-    SET_PARENT(x, NULL);
-    return x;
-}
-
-rb_node *rb_transplant(rb_tree *rb_tree, rb_node *dst, rb_node *src) {
-    assert(src != NULL && rb_tree != NULL && dst != NULL, "NULL Protector");
-
-    if (rb_tree && rb_tree->root == dst)
-        rb_tree->root = src;
-    else if (dst == GET_PARENT(dst)->R)
-        GET_PARENT(dst)->R = src;
-    else if (dst == GET_PARENT(dst)->L)
-        GET_PARENT(dst)->L = src;
-    SET_PARENT(src, GET_PARENT(dst));
-    return dst;
-}
-
-void rb_left_rotate(rb_tree *rb_tree, rb_node *x) {
-    if (x->R == NULL)
-        return;
-    rb_node *a = rb_detach(x->R);
-    rb_transplant(rb_tree, x, a);
-    if (a->L) {
-        rb_node *b = rb_detach(a->L);
-        a->L       = x;
-        SET_PARENT(x, a);
-        x->R = b;
-        SET_PARENT(b, x);
-    } else {
-        a->L = x;
-        SET_PARENT(x, a);
-    }
-}
-
-void rb_right_rotate(rb_tree *rb_tree, rb_node *x) {
-    if (x->L == NULL)
-        return;
-    rb_node *a = rb_detach(x->L);
-    rb_transplant(rb_tree, x, a);
-    if (a->R) {
-        rb_node *b = rb_detach(a->R);
-        a->R       = x;
-        SET_PARENT(x, a);
-        x->L = b;
-        SET_PARENT(b, x);
-    } else {
-        a->R = x;
-        SET_PARENT(x, a);
-    }
-}
-
-void rb_insert_fixup(rb_tree *t, rb_node *n) {
-    if (GET_PARENT(n) == NULL) {
-        SET_COLOR(n, RB_BLACK);
-        return;
-    }
-    if ((GET_COLOR((GET_PARENT(n)))) == RB_BLACK) {
-        ;
-    } else {
-        rb_node *parent = GET_PARENT(n);
-        rb_node *grand  = GET_PARENT(parent);
-        rb_node *uncle  = grand->R == parent ? grand->L : grand->R;
-        if (uncle && GET_COLOR(uncle) == RB_RED) {
-            SET_COLOR(parent, RB_BLACK);
-            SET_COLOR(uncle, RB_BLACK);
-            SET_COLOR(grand, RB_RED);
-            rb_insert_fixup(t, grand);
-        } else if (grand->L == parent) {
-            if (parent->L == n) {
-                SET_COLOR(parent, RB_BLACK);
-                SET_COLOR(grand, RB_RED);
-            } else {
-                SET_COLOR(n, RB_BLACK);
-                SET_COLOR(grand, RB_RED);
-                rb_left_rotate(t, parent);
-            }
-            rb_right_rotate(t, grand);
-        } else {
-            if (parent->R == n) {
-                SET_COLOR(parent, RB_BLACK);
-                SET_COLOR(grand, RB_RED);
-            } else {
-                SET_COLOR(n, RB_BLACK);
-                SET_COLOR(grand, RB_RED);
-                rb_right_rotate(t, parent);
-            }
-            rb_left_rotate(t, grand);
-        }
-    }
-}
-
-rb_node *rb_insert(rb_tree *t, rb_node *n) {
-    SET_COLOR(n, RB_RED);
-    /* insert like BST */
-    rb_node *x = t->root;
-    if (x == NULL)
-        t->root = n;
-    else
-        while (x != NULL) {
-            if (x->key == n->key)
-                return x; // key already exists
-            else if (x->key > n->key) {
-                if (x->L == NULL) {
-                    x->L = n;
-                    break;
-                } else
-                    x = x->L;
-            } else {
-                if (x->R == NULL) {
-                    x->R = n;
-                    break;
-                } else
-                    x = x->R;
-            }
-        }
-    SET_PARENT(n, x);
-    /* END insert like BST */
-    rb_insert_fixup(t, n);
-    SET_COLOR(t->root, RB_BLACK); // root is always black
-    return NULL;
 }
 
 rb_node *rb_succ(rb_node *n) {
@@ -195,107 +67,261 @@ rb_node *rb_pred(rb_node *n) {
     }
 }
 
-void rb_remove_fixup(rb_tree *t, rb_node *n, rb_node *parent) {
+static void rb_rotate_left(rb_tree *tree, rb_node *node) {
+    rb_node *right  = node->R;
+    rb_node *parent = GET_PARENT(node);
+
+    if ((node->R = right->L))
+        SET_PARENT(right->L, node);
+    right->L = node;
+
+    SET_PARENT(right, parent);
+
+    if (parent) {
+        if (node == parent->L)
+            parent->L = right;
+        else
+            parent->R = right;
+    } else
+        tree->root = right;
+    SET_PARENT(node, right);
+}
+
+static void rb_rotate_right(rb_tree *tree, rb_node *node) {
+    rb_node *left   = node->L;
+    rb_node *parent = GET_PARENT(node);
+
+    if ((node->L = left->R))
+        SET_PARENT(left->R, node);
+    left->R = node;
+
+    SET_PARENT(left, parent);
+
+    if (parent) {
+        if (node == parent->R)
+            parent->R = left;
+        else
+            parent->L = left;
+    } else
+        tree->root = left;
+    SET_PARENT(node, left);
+}
+
+static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
+    rb_node *parent, *gparent;
+
+    while ((parent = GET_PARENT(node)) && GET_COLOR(parent) == RB_RED) {
+        gparent = GET_PARENT(parent);
+
+        if (parent == gparent->L) {
+            {
+                register rb_node *uncle = gparent->R;
+                if (uncle && GET_COLOR(uncle) == RB_RED) {
+                    BLACK(uncle);
+                    BLACK(parent);
+                    RED(gparent);
+                    node = gparent;
+                    continue;
+                }
+            }
+
+            if (parent->R == node) {
+                register rb_node *tmp;
+                rb_rotate_left(tree, parent);
+                tmp    = parent;
+                parent = node;
+                node   = tmp;
+            }
+
+            BLACK(parent);
+            RED(gparent);
+            rb_rotate_right(tree, gparent);
+        } else {
+            {
+                register rb_node *uncle = gparent->L;
+                if (uncle && GET_COLOR(uncle) == RB_RED) {
+                    BLACK(uncle);
+                    BLACK(parent);
+                    RED(gparent);
+                    node = gparent;
+                    continue;
+                }
+            }
+
+            if (parent->L == node) {
+                register rb_node *tmp;
+                rb_rotate_right(tree, parent);
+                tmp    = parent;
+                parent = node;
+                node   = tmp;
+            }
+
+            BLACK(parent);
+            RED(gparent);
+            rb_rotate_left(tree, gparent);
+        }
+    }
+
+    BLACK(tree->root);
+}
+
+rb_node *rb_insert(rb_tree *t, rb_node *n) {
+    n->L = n->R = NULL;
+    SET_PARENT(n, NULL);
+    if (t->root == NULL) {
+        BLACK(n);
+        t->root = n;
+    } else {
+        rb_node *y = NULL;
+        rb_node *x = t->root;
+        while (x != NULL) {
+            y = x;
+            if (n->key == x->key)
+                return x;
+            if (n->key < x->key)
+                x = x->L;
+            else
+                x = x->R;
+        }
+        SET_PARENT(n, y);
+        if (n->key > y->key)
+            y->R = n;
+        else
+            y->L = n;
+        RED(n);
+    }
+    rb_insert_fixup(t, n);
+    return NULL;
+}
+
+static void rb_remove_fixup(rb_tree *tree, rb_node *node, rb_node *parent) {
     rb_node *other;
 
-    while ((!n || GET_COLOR(n) == RB_BLACK) && n != t->root) {
-        if (parent->L == n) {
+    while ((!node || GET_COLOR(node) == RB_BLACK) && node != tree->root) {
+        if (parent->L == node) {
             other = parent->R;
             if (GET_COLOR(other) == RB_RED) {
-                SET_COLOR(other, RB_BLACK);
-                SET_COLOR(parent, RB_RED);
-                rb_left_rotate(t, parent);
+                BLACK(other);
+                RED(parent);
+                rb_rotate_left(tree, parent);
                 other = parent->R;
             }
             if ((!other->L || GET_COLOR(other->L) == RB_BLACK) &&
                 (!other->R || GET_COLOR(other->R) == RB_BLACK)) {
-                SET_COLOR(other, RB_RED);
-                n      = parent;
-                parent = GET_PARENT(n);
+                RED(other);
+                node   = parent;
+                parent = GET_PARENT(node);
             } else {
                 if (!other->R || GET_COLOR(other->R) == RB_BLACK) {
-                    SET_COLOR(other->L, RB_BLACK);
-                    SET_COLOR(other, RB_RED);
-                    rb_right_rotate(t, other);
+                    BLACK(other->L);
+                    RED(other);
+                    rb_rotate_right(tree, other);
                     other = parent->R;
                 }
                 SET_COLOR(other, GET_COLOR(parent));
-                SET_COLOR(parent, RB_BLACK);
-                SET_COLOR(other->R, RB_BLACK);
-                rb_left_rotate(t, parent);
-                n = t->root;
+                BLACK(parent);
+                BLACK(other->R);
+                rb_rotate_left(tree, parent);
+                node = tree->root;
                 break;
             }
         } else {
             other = parent->L;
             if (GET_COLOR(other) == RB_RED) {
-                SET_COLOR(other, RB_BLACK);
-                SET_COLOR(parent, RB_RED);
-                rb_right_rotate(t, parent);
+                BLACK(other);
+                RED(parent);
+                rb_rotate_right(tree, parent);
                 other = parent->L;
             }
             if ((!other->L || GET_COLOR(other->L) == RB_BLACK) &&
                 (!other->R || GET_COLOR(other->R) == RB_BLACK)) {
-                SET_COLOR(other, RB_RED);
-                n      = parent;
-                parent = GET_PARENT(n);
+                RED(other);
+                node   = parent;
+                parent = GET_PARENT(node);
             } else {
                 if (!other->L || GET_COLOR(other->L) == RB_BLACK) {
-                    SET_COLOR(other->R, RB_BLACK);
-                    SET_COLOR(other, RB_RED);
-                    rb_left_rotate(t, other);
+                    BLACK(other->R);
+                    RED(other);
+                    rb_rotate_left(tree, other);
                     other = parent->L;
                 }
                 SET_COLOR(other, GET_COLOR(parent));
-                SET_COLOR(parent, RB_BLACK);
-                SET_COLOR(other->L, RB_BLACK);
-                rb_right_rotate(t, parent);
-                n = t->root;
+                BLACK(parent);
+                BLACK(other->L);
+                rb_rotate_right(tree, parent);
+                node = tree->root;
                 break;
             }
         }
     }
-    if (n)
-        SET_COLOR(n, RB_BLACK);
+    if (node)
+        BLACK(node);
 }
 
-void rb_remove(rb_tree *t, rb_node *n) {
-    rb_node *r = n;
-    rb_node *child;
-    int      color = GET_COLOR(n);
+void rb_remove(rb_tree *tree, rb_node *node) {
+    rb_node *child, *parent;
+    int      color;
 
-    if (n->L == NULL) {
-        child = n->R;
-        if (!child) {
-            t->root = NULL;
-            return;
-        }
-        rb_transplant(t, n, child);
-    } else if (n->R == NULL) {
-        child = n->L;
-        rb_transplant(t, n, child);
-    } else {
-        r     = rb_succ(n);
-        color = GET_COLOR(r);
-        child = r->R;
-        if (GET_PARENT(r) == n) { // replace is node->right
+    if (!node->L)
+        child = node->R;
+    else if (!node->R)
+        child = node->L;
+    else {
+        rb_node *old = node, *left;
+
+        node = node->R;
+        while ((left = node->L) != NULL)
+            node = left;
+
+        if (GET_PARENT(old)) {
+            if (GET_PARENT(old)->L == old)
+                GET_PARENT(old)->L = node;
+            else
+                GET_PARENT(old)->R = node;
+        } else
+            tree->root = node;
+
+        child  = node->R;
+        parent = GET_PARENT(node);
+        color  = GET_COLOR(node);
+
+        if (parent == old) {
+            parent = node;
+        } else {
             if (child)
-                SET_PARENT(child, r);
-        } else { // replace is node->right->left(most)
-            rb_transplant(t, r, r->R);
-            r->R = n->R;
-            SET_PARENT(r->R, r);
+                SET_PARENT(child, parent);
+            parent->L = child;
+
+            node->R = old->R;
+            SET_PARENT(old->R, node);
         }
-        rb_transplant(t, n, r);
-        r->L = n->L;
-        SET_PARENT(r->L, r);
-        SET_COLOR(r, GET_COLOR(n));
+
+        node->parent_and_color = old->parent_and_color;
+        node->L                = old->L;
+        SET_PARENT(old->L, node);
+
+        goto color;
     }
+
+    parent = GET_PARENT(node);
+    color  = GET_COLOR(node);
+
+    if (child)
+        SET_PARENT(child, parent);
+    if (parent) {
+        if (parent->L == node)
+            parent->L = child;
+        else
+            parent->R = child;
+    } else
+        tree->root = child;
+
+color:
     if (color == RB_BLACK)
-        rb_remove_fixup(t, child, r);
+        rb_remove_fixup(tree, child, parent);
 }
 
-void rb_replace(rb_tree *tree, rb_node *old, rb_node *new) {
+void rb_replace(rb_node *old, rb_node *new) {
     assert(old->key == new->key, "Only nodes with same key could be replace.");
     int      color  = GET_COLOR(old);
     rb_node *parent = GET_PARENT(old);

@@ -156,11 +156,15 @@ int vfs_close(file_t *file) {}
 int vfs_read(file_t *file, char *buffer, size_t offset, size_t len) {
     if (!file->f_op || !file->f_op->read)
         return -1;
-    return file->f_op->read(file, buffer, offset, len);
+    int r = file->f_op->read(file, buffer, file->f_offset + offset, len);
+    file->f_offset += len;
+    return r;
 }
 
 int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
     if (!file->f_op || !file->f_op->write)
         return -1;
-    return file->f_op->write(file, buffer, offset, len);
+    int r = file->f_op->write(file, buffer, file->f_offset + offset, len);
+    file->f_offset += len;
+    return r;
 }

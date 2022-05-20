@@ -9,12 +9,4 @@
 #include <syscall.h>
 #include <vfs.h>
 
-sysret_t sys_test(struct trap_context *trapframe) {
-
-    extern void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func);
-    char        buffer[512];
-    virtio_disk_rw(0x0, buffer, 512, 0); // read test
-    kprintf("Read!!!\n");
-
-    return 0;
-}
+sysret_t sys_test(struct trap_context *trapframe) { return 0; }

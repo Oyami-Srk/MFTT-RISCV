@@ -88,7 +88,7 @@ struct task_context {
 
 struct __proc_t {
     /* 0 ~ 24 */
-    pde_t    page_dir;
+    uint64_t page_csr;
     void    *kernel_sp;
     void    *user_pc;
     uint64_t kernel_cpuid;
@@ -97,6 +97,7 @@ struct __proc_t {
     /* 280 ~ ... */
 
     // Actually Assembly doesn't need anything below
+    pde_t               page_dir;
     pid_t               pid;
     uint32_t            status;
     struct __proc_t    *parent;

@@ -30,6 +30,10 @@ void setup_init_process() {
     map_pages(proc->page_dir, (void *)(PROC_STACK_BASE - PG_SIZE),
               process_stack, PG_SIZE, PTE_TYPE_RW, true, false);
 
+    uint64_t satp = ((uint64_t)proc->page_dir / PG_SIZE) |
+                    ((uint64_t)PAGING_MODE_SV39 << 60);
+    proc->page_csr = satp;
+
     proc->trapframe.sp = PROC_STACK_BASE;
 
     proc->status |= PROC_STATUS_READY;

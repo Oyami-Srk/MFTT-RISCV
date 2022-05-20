@@ -18,6 +18,7 @@
 
 #define VIRTIO_BLK_T_IN  0 // read the disk
 #define VIRTIO_BLK_T_OUT 1 // write the disk
+#define SECTOR_SIZE      512
 
 typedef struct {
     uint32_t type; // 0: Read; 1: Write; 4: Flush; 11: Discard; 13: Write zeros
@@ -42,6 +43,24 @@ static struct {
 } virtio_disk = {.initialized = false};
 
 static int virtio_disk_interrupt_handler(void);
+static int virtio_disk_read(file_t *file, char *buffer, size_t offset,
+                            size_t len);
+static int virtio_disk_write(file_t *file, const char *buffer, size_t offset,
+                             size_t len);
+
+static inode_ops_t inode_ops = {
+    .link = NULL, .lookup = NULL, .mkdir = NULL, .rmdir = NULL, .unlink = NULL};
+
+static file_ops_t file_ops = {
+    .flush  = NULL,
+    .mmap   = NULL,
+    .munmap = NULL,
+    .write  = virtio_disk_write,
+    .read   = virtio_disk_read,
+    .open   = NULL,
+    .close  = NULL,
+    .seek   = NULL,
+};
 
 void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
     kprintf("[DISK] Setup Virtio Disk at MMIO Bus 0x%lx.\n", ioaddr);
@@ -118,6 +137,15 @@ void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
                  MEM_IO_READ(uint32_t, ioaddr + VIRTIO_MMIO_STATUS) |
                      (VIRTIO_CONFIG_S_DRIVER_OK));
 
+    // Setup vfs
+    inode_t *inode  = vfs_alloc_inode(NULL);
+    inode->i_f_op   = &file_ops;
+    inode->i_op     = &inode_ops;
+    inode->i_dev[0] = 2;
+    inode->i_dev[1] = 1;
+
+    vfs_link_inode(inode, vfs_get_dentry("/dev", NULL), "vda_raw");
+
     spinlock_release(&virtio_disk.lock);
     kprintf("[DISK] Setup Virtio Disk complete.\n");
     return;
@@ -126,8 +154,8 @@ failed:
     spinlock_release(&virtio_disk.lock);
 }
 
-// func: 0 is read, 1 is write. buf must be pa, size must be multiple of 512
-void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
+// func: 0 is read, 1 is write. buf must be pa and SECTOR_SIZE multiple
+int virtio_disk_rw(uint64_t sector, char *buf, size_t count, int func) {
     spinlock_acquire(&virtio_disk.lock);
     // legacy block device requires three descs:
     // Type, data, result
@@ -144,7 +172,7 @@ void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
         uint64_t sector;
     } buf0 = {.type   = func == 0 ? VIRTIO_BLK_T_IN : VIRTIO_BLK_T_OUT,
               .rsvd   = 0,
-              .sector = addr};
+              .sector = sector};
     // buf0 in kstack is directly mapped
     virtio_mmio_queue_desc_t *desc_table = virtio_disk.queue.io_ring->desc;
     desc_table[idx[0]].addr              = (uintptr_t)&buf0;
@@ -153,7 +181,7 @@ void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
     desc_table[idx[0]].next              = idx[1];
 
     desc_table[idx[1]].addr   = (uintptr_t)buf;
-    desc_table[idx[1]].length = size;
+    desc_table[idx[1]].length = count * SECTOR_SIZE;
     if (func == 0)
         // we read, device write only
         desc_table[idx[1]].flags = VIRTIO_MMIO_QUEUE_DESC_F_WRITE_ONLY;
@@ -170,8 +198,8 @@ void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
 
     virtio_disk.trace[idx[0]].status = 0;
     virtio_disk.trace[idx[0]].ok     = 0;
-    virtio_disk.trace[idx[0]].addr   = (char *)addr;
-    virtio_disk.trace[idx[0]].size   = size;
+    virtio_disk.trace[idx[0]].addr   = (char *)sector;
+    virtio_disk.trace[idx[0]].size   = count * SECTOR_SIZE;
 
     // put into avail ring
     virtio_mmio_queue_avail_t *avail = &virtio_disk.queue.io_ring->avail;
@@ -193,6 +221,44 @@ void virtio_disk_rw(uint64_t addr, char *buf, size_t size, int func) {
     spinlock_release(&virtio_disk.lock);
 }
 
+static int virtio_disk_read(file_t *file, char *buffer, size_t offset,
+                            size_t len) {
+    size_t rounded_size  = 0;
+    size_t sector        = offset / SECTOR_SIZE;
+    size_t sector_offset = offset % SECTOR_SIZE;
+    size_t elen          = len + sector_offset;
+    char  *kbuf;
+    if (elen < PG_SIZE)
+        kbuf =
+            (char *)kmalloc((rounded_size = ROUNDUP_WITH(SECTOR_SIZE, elen)));
+    else
+        kbuf = (char *)kmalloc((rounded_size = PG_ROUNDUP(elen)));
+    memset(kbuf, 0, rounded_size);
+    virtio_disk_rw(sector, kbuf, rounded_size / SECTOR_SIZE, 0);
+    memcpy(buffer, kbuf + sector_offset, len);
+    return len;
+}
+
+static int virtio_disk_write(file_t *file, const char *buffer, size_t offset,
+                             size_t len) {
+    size_t rounded_size  = 0;
+    size_t sector        = offset / SECTOR_SIZE;
+    size_t sector_offset = offset % SECTOR_SIZE;
+    size_t elen          = len + sector_offset;
+    char  *kbuf;
+    if (elen < PG_SIZE)
+        kbuf =
+            (char *)kmalloc((rounded_size = ROUNDUP_WITH(SECTOR_SIZE, elen)));
+    else
+        kbuf = (char *)kmalloc((rounded_size = PG_ROUNDUP(elen)));
+    memset(kbuf, 0, rounded_size);
+    virtio_disk_rw(sector, kbuf, rounded_size / SECTOR_SIZE, 0);
+    memcpy(kbuf + sector_offset, buffer, len);
+    virtio_disk_rw(sector, kbuf, rounded_size / SECTOR_SIZE, 1);
+    return len;
+}
+
+// Interrupt handler
 static int virtio_disk_interrupt_handler(void) {
     spinlock_acquire(&virtio_disk.lock);
     uint32_t                 *used_idx = &virtio_disk.queue.used_idx;

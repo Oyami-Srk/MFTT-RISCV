@@ -131,4 +131,8 @@ int   mem_sysmap(void *va, void *pa, size_t size, int type);
 int   mem_sysunmap(void *va);
 pde_t alloc_page_dir();
 
+void *umemcpy(void *dst, const void *src, size_t size);
+char *ustrcpy_out(char *ustr);
+void  ustrcpy_in(char *ustr, char *kbuf);
+
 #endif // __MEMORY_H__

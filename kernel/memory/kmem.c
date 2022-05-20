@@ -20,6 +20,7 @@ struct __kmem_pool {
 };
 
 typedef struct __kmem_pool kmem_pool;
+static spinlock_t          kmem_lock = {.lock = false, .cpu = 0};
 
 // TODO: Smaller the block, glibc is amazing at pool management
 struct __kmem_block {
@@ -76,7 +77,7 @@ void attach_to_memory_pool(char *mem, size_t sz) {
 
 static void insert_into_pool(kmem_pool *pool, char *mem, size_t sz) {
     assert(pool, "Pool must be a valid pointer.");
-    assert(sz > sizeof(kmem_block), "Size must large than sizeof kmem_block.");
+    assert(sz >= sizeof(kmem_block), "Size must large than sizeof kmem_block.");
 
     kmem_block *block = (kmem_block *)mem;
     memset(block, 0, sizeof(kmem_block));
@@ -126,7 +127,7 @@ static void remove_from_pool(kmem_block *block) {
         assert(next->mem.prev_free == block,
                "Next block's prev is not current block.");
 
-        rb_replace(&pool->free_tree, &block->tree_node, &next->tree_node);
+        rb_replace(&block->tree_node, &next->tree_node);
         next->mem.prev_free = NULL;
         next->type |= KMEM_TYPE_IN_TREE;
         block->type &= ~(KMEM_TYPE_HAVE_NEXT | KMEM_TYPE_IN_TREE);
@@ -155,6 +156,7 @@ static rb_node *rb_search_upper(rb_node *x, uint64_t key) {
 }
 
 char *kmalloc(size_t size) {
+    spinlock_acquire(&kmem_lock);
     size += kmem_block_head_size;
     size            = ROUNDUP_WITH(16, size);
     kmem_pool *pool = memory_pool;
@@ -165,6 +167,8 @@ char *kmalloc(size_t size) {
         if (node == NULL) {
             spinlock_release(&pool->lock);
             pool = pool->next_pool;
+            if (!pool)
+                return NULL;
             spinlock_acquire(&pool->lock);
         }
     }
@@ -181,10 +185,12 @@ char *kmalloc(size_t size) {
     block->type = KMEM_TYPE_INUSE;
     pool->free -= block->size + kmem_block_head_size;
     spinlock_release(&pool->lock);
+    spinlock_release(&kmem_lock);
     return block->mem.mem;
 }
 
 void kfree(char *p) {
+    spinlock_acquire(&kmem_lock);
     kmem_block *block = (kmem_block *)(p - kmem_block_head_size);
     assert(block->cookie == KMEM_COOKIE, "Memory block invalid at kfree.");
     kmem_block *next_block = (kmem_block *)(p + block->size);
@@ -214,4 +220,5 @@ void kfree(char *p) {
     insert_into_pool(block->pool, (char *)block,
                      block->size + kmem_block_head_size);
     spinlock_release(pool_lock);
+    spinlock_release(&kmem_lock);
 }

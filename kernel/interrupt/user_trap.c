@@ -65,5 +65,7 @@ void return_to_cpu_process() {
     proc_t *proc = myproc();
     cpu_t  *cpu  = mycpu();
     assert(proc, "Process must be valid.");
+    // switch to proc kernel page
+    CSR_Write(satp, proc->page_csr);
     context_switch(&mycpu()->context, &mycpu()->proc->kernel_task_context);
 }

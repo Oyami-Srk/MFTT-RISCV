@@ -11,7 +11,8 @@
 #include <lib/linklist.h>
 #include <lib/sys/sleeplock.h>
 
-#define BUFFER_SIZE 512
+#define MAX_BIO_CACHE 16
+#define BUFFER_SIZE   512
 
 typedef struct __buffered_io_t {
     bool     valid;

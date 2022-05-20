@@ -19,13 +19,18 @@ int init_driver() {
 
         list_foreach_entry(head_driver, dev_driver_t, list, added) {
             if (added->loading_sequence >= dlevel) {
-                list_add(&((*drv)->list), &(added->list));
+                list_add_tail(&((*drv)->list), &(added->list));
                 goto out;
             }
         }
         list_add_tail(&((*drv)->list), head_driver);
     out:;
     }
+    kprintf("[DRV] Loading sequence: ");
+    list_foreach_entry(head_driver, dev_driver_t, list, drv) {
+        kprintf("%s(%d), ", drv->name, drv->loading_sequence);
+    }
+    kprintf("\n");
     // init ordered list
     // TODO: non-return fault handle.
     list_foreach_entry(head_driver, dev_driver_t, list, drv) {

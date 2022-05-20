@@ -127,6 +127,7 @@ void init_paging(void *init_start, void *init_end) {
 #endif
     uint64_t satp = ((uint64_t)env.kernel_pagedir / PG_SIZE) |
                     ((uint64_t)PAGING_MODE_SV39 << 60);
+    env.kernel_satp = satp;
     CSR_Write(satp, satp);
     flush_tlb_all();
 }

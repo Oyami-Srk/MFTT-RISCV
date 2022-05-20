@@ -3,12 +3,14 @@
 
 #include <common/types.h>
 
+#define ALWAYS_INLINE __attribute__((always_inline))
+
 // tp register, we use it for saving cpuid(hartid)
-static inline void w_tp(uint64_t hartid) {
+static ALWAYS_INLINE inline void w_tp(uint64_t hartid) {
     asm volatile("mv tp, %0" ::"r"(hartid));
 }
 
-static inline uint64_t r_tp() {
+static ALWAYS_INLINE inline uint64_t r_tp() {
     uint64_t ret;
     asm volatile("mv %0, tp" : "=r"(ret)::);
     return ret;
@@ -67,8 +69,8 @@ static inline void disable_trap() {
     CSR_Write(sstatus, CSR_Read(sstatus) & ~SSTATUS_SIE);
 }
 
-static inline void     set_cpuid(uint64_t cpuid) { w_tp(cpuid); }
-static inline uint64_t cpuid() { return r_tp(); }
-static inline void     flush_tlb_all() { sfence_vma(); }
+static ALWAYS_INLINE inline void     set_cpuid(uint64_t cpuid) { w_tp(cpuid); }
+static ALWAYS_INLINE inline uint64_t cpuid() { return r_tp(); }
+static ALWAYS_INLINE inline void     flush_tlb_all() { sfence_vma(); }
 
 #endif // __RISCV_H__

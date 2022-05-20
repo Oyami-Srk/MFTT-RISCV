@@ -32,6 +32,7 @@ struct __env_t {
     /* Memory */
     // TODO: consider move memory_info to here
     pde_t       kernel_pagedir;
+    uint64_t    kernel_satp;
     list_head_t mem_sysmaps;
     /* Process */
     // TODO: make process table dynamicly allocated and increase.

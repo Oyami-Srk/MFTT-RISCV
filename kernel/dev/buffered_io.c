@@ -38,11 +38,23 @@ buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr) {
     }
     // not in cache
     if (i >= MAX_BIO_CACHE) {
-        // cached too many, we hope we could remove one
-        kprintf("[BIO] Cached too many buffers, currently hold %d (max %d).\n",
-                i + 1, MAX_BIO_CACHE);
-        // but we do nothing
         // TODO: swap to disk and release.
+        // cached too many, we hope we could remove one
+        buffered_io_t *todelete = NULL;
+        list_foreach_entry(&bio_cache.cache_head, buffered_io_t, list, buf) {
+            if (buf->reference == 0) {
+                todelete = buf;
+                return NULL;
+            }
+        }
+        if (todelete) {
+            list_del(&todelete->list);
+            kfree((char *)todelete);
+        } else {
+            kprintf(
+                "[BIO] Cached too many buffers, currently hold %d (max %d).\n",
+                i + 1, MAX_BIO_CACHE);
+        }
     }
     buffered_io_t *buffer = (buffered_io_t *)kmalloc(sizeof(buffered_io_t));
     assert(buffer, "No memory while alloc buffered io.");
@@ -88,10 +100,6 @@ void bio_cache_release(buffered_io_t *buf) {
 
     spinlock_acquire(&bio_cache.lock);
     buf->reference--;
-    if (buf->reference == 0) {
-        list_del(&buf->list);
-        kfree((char *)buf);
-    }
     spinlock_release(&bio_cache.lock);
 }
 

@@ -2,8 +2,8 @@
 // Created by shiroko on 22-5-2.
 //
 
+#include <types.h>
 #include "./plic.h"
-#include <common/types.h>
 #include <configs.h>
 #include <lib/sys/SBI.h>
 #include <riscv.h>

@@ -7,7 +7,7 @@
 
 // very simple impl, type from FreeBSD and Linux
 
-#include <common/types.h>
+#include <types.h>
 #include <proc.h>
 
 typedef uintptr_t Elf64_Addr;  // unsigned address

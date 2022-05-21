@@ -1,7 +1,7 @@
 #ifndef __RISCV_H__
 #define __RISCV_H__
 
-#include <common/types.h>
+#include <types.h>
 
 #define ALWAYS_INLINE __attribute__((always_inline))
 

@@ -41,7 +41,8 @@ buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr) {
         // TODO: swap to disk and release.
         // cached too many, we hope we could remove one
         buffered_io_t *todelete = NULL;
-        list_foreach_entry(&bio_cache.cache_head, buffered_io_t, list, buf) {
+        list_foreach_entry_reverse(&bio_cache.cache_head, buffered_io_t, list,
+                                   buf) {
             if (buf->reference == 0) {
                 todelete = buf;
                 return NULL;

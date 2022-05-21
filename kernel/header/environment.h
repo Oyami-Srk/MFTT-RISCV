@@ -5,7 +5,7 @@
 #ifndef __ENVIRONMENT_H__
 #define __ENVIRONMENT_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <configs.h>
 #include <lib/linklist.h>
 #include <lib/sys/spinlock.h>

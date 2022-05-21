@@ -5,7 +5,7 @@
 #ifndef __VIRTIO_VIRTIO_H__
 #define __VIRTIO_VIRTIO_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/bitset.h>
 
 #define VIRTIO_MMIO_MAX_BUS     32

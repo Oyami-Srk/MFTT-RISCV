@@ -5,7 +5,7 @@
 #ifndef __MEMORY_UTILS_H__
 #define __MEMORY_UTILS_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <memory.h>
 
 static inline uint64_t round_down_power_2(uint64_t x) {

@@ -1,4 +1,4 @@
-#include <common/types.h>
+#include <types.h>
 #include <dev/dev.h>
 #include <driver/console.h>
 #include <environment.h>

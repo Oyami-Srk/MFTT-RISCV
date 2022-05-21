@@ -1,5 +1,5 @@
+#include <types.h>
 #include "./utils.h"
-#include <common/types.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>

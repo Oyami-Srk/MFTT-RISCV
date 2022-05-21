@@ -5,7 +5,7 @@
 #ifndef __INTERRUPT_PLIC_H__
 #define __INTERRUPT_PLIC_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <memory.h>
 
 #define PLIC_BASE_OFFSET            0x0

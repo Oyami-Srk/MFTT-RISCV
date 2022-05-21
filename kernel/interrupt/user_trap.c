@@ -2,8 +2,8 @@
 // Created by shiroko on 22-4-30.
 //
 
+#include <types.h>
 #include "./utils.h"
-#include <common/types.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>

@@ -1,7 +1,7 @@
 #ifndef __SPINLOCK_H__
 #define __SPINLOCK_H__
 
-#include <common/types.h>
+#include <types.h>
 
 typedef struct __spinlock_t {
     bool lock;

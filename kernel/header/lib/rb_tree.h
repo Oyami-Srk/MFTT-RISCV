@@ -5,7 +5,7 @@
 #ifndef __RB_TREE_H__
 #define __RB_TREE_H__
 
-#include <common/types.h>
+#include <types.h>
 
 struct _rb_node {
     uint64_t key;

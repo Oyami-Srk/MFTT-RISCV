@@ -1,4 +1,4 @@
-#include <common/types.h>
+#include <types.h>
 #include <lib/string.h>
 
 void *memcpy(void *dst, const void *src, size_t size) {

@@ -3,7 +3,7 @@
 #ifndef __FDT_H__
 #define __FDT_H__
 
-#include <common/types.h>
+#include <types.h>
 
 typedef uint32_t fdt32_t;
 typedef uint64_t fdt64_t;

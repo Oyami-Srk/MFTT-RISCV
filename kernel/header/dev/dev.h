@@ -5,7 +5,7 @@
 #ifndef __DEV_H__
 #define __DEV_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <configs.h>
 #include <lib/linklist.h>
 #include <vfs.h>

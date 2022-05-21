@@ -5,7 +5,7 @@
 #ifndef __PROC_H__
 #define __PROC_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/sys/spinlock.h>
 #include <memory.h>
 #include <vfs.h>

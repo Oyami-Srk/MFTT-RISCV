@@ -5,7 +5,7 @@
 #ifndef __BITSET_H__
 #define __BITSET_H__
 
-#include <common/types.h>
+#include <types.h>
 
 typedef unsigned int bitset_t;
 

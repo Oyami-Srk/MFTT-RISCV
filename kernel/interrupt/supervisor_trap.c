@@ -2,7 +2,7 @@
 // Created by shiroko on 22-4-30.
 //
 
-#include <common/types.h>
+#include <types.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>

@@ -1,7 +1,7 @@
 #ifndef __FDT_LIBFDT_H__
 #define __FDT_LIBFDT_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/sys/fdt.h>
 
 

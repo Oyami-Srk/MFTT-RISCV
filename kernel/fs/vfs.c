@@ -28,10 +28,26 @@ dentry_t dev_dentry = {
     .d_subdirs = LIST_HEAD_INIT(dev_dentry.d_subdirs),
 };
 
+LIST_HEAD(filesystems_list);
+
 void init_vfs() {
     kprintf("[VFS] Start initialize.\n");
     list_add(&sys_dentry.d_subdirs_list, &root_dentry.d_subdirs);
     list_add(&dev_dentry.d_subdirs_list, &root_dentry.d_subdirs);
+    // build fs list
+    kprintf("[VFS] Register filesystem: ");
+    section_foreach_entry(Filesystems, filesystem_t *, fs) {
+        kprintf("%s", (*fs)->fs_name);
+        int ret;
+        if ((*fs)->fs_op->init_fs && (ret = (*fs)->fs_op->init_fs()) != 0) {
+            kprintf("(failed)");
+            continue;
+        }
+        if (!section_is_last(Filesystems, filesystem_t *, fs))
+            kprintf(",");
+        list_add(&(*fs)->fs_fslist, &filesystems_list);
+    }
+    kprintf("\n");
 }
 
 dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {

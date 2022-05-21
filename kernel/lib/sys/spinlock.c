@@ -1,4 +1,4 @@
-#include <common/types.h>
+#include <types.h>
 #include <lib/stdlib.h>
 #include <lib/sys/spinlock.h>
 #include <riscv.h>

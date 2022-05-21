@@ -14,7 +14,7 @@
  * 可能会导致问题。（FIXME）
  */
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/linklist.h>
 #include <lib/sys/spinlock.h>
 
@@ -64,7 +64,8 @@ struct vfs_superblock_ops {
 };
 
 struct vfs_fs_ops {
-    struct vfs_superblock *(*init_fs)(struct vfs_superblock *, void *);
+    int (*init_fs)();
+    struct vfs_superblock *(*mount)(struct vfs_superblock *, void *);
 };
 
 typedef struct vfs_inode_ops      inode_ops_t;
@@ -144,6 +145,8 @@ struct vfs_filesystem_t {
     const char        *fs_name;
     uint16_t           fs_dev;
     struct vfs_fs_ops *fs_op;
+
+    list_head_t fs_fslist;
 };
 
 // Funcs
@@ -157,5 +160,10 @@ file_t *vfs_open(dentry_t *dentry, int mode);
 int     vfs_close(file_t *file);
 int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
 int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);
+
+// Utils for fs
+#define ADD_FILESYSTEM(fs)                                                     \
+    static filesystem_t *__ptr##fs                                             \
+        __attribute__((used, section("Filesystems"))) = &fs
 
 #endif // __VFS_H__

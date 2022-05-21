@@ -3,8 +3,8 @@
 //
 
 // TODO: Support virtio.pci
+#include <types.h>
 #include "./virtio.h"
-#include <common/types.h>
 #include <dev/dev.h>
 #include <driver/console.h>
 #include <lib/bitset.h>

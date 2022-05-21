@@ -2,7 +2,7 @@
 // Created by shiroko on 22-5-20.
 //
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <memory.h>

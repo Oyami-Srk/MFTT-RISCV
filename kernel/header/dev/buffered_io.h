@@ -7,7 +7,7 @@
 
 // From xv6 buffered io
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/linklist.h>
 #include <lib/sys/sleeplock.h>
 

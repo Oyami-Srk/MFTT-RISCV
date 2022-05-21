@@ -5,7 +5,7 @@
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 
-#include <common/types.h>
+#include <types.h>
 #include <lib/bitset.h>
 #include <lib/linklist.h>
 #include <lib/sys/spinlock.h>

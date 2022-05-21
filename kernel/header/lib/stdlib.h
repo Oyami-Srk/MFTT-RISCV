@@ -1,7 +1,7 @@
 #ifndef __STDLIB_H__
 #define __STDLIB_H__
 
-#include <common/types.h>
+#include <types.h>
 
 char *itoa(long long value, char *str, int base);
 int   vsprintf(char *buf, const char *fmt, va_list args);
@@ -25,6 +25,12 @@ extern _Noreturn void kpanic_proto(const char *s_fn, const char *b_fn,
              &__stop_##section_name;                                           \
          });                                                                   \
          elem++)
+
+#define section_is_last(section_name, type_t, elem)                            \
+    (((uintptr_t)(elem + 1)) == (uintptr_t)({                                  \
+         extern type_t __stop_##section_name;                                  \
+         &__stop_##section_name;                                               \
+     }))
 
 #define offset_of(TYPE, MEMBER) ((size_t) & ((TYPE *)0)->MEMBER)
 #define container_of(ptr, type, member)                                        \

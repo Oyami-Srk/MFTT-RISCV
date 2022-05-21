@@ -3,7 +3,7 @@
 //
 
 #include "./plic.h"
-#include <common/types.h>
+#include <types.h>
 #include <configs.h>
 #include <driver/console.h>
 #include <lib/stdlib.h>

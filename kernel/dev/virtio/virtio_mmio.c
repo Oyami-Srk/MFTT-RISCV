@@ -2,8 +2,8 @@
 // Created by shiroko on 22-5-18.
 //
 
+#include <types.h>
 #include "./virtio.h"
-#include <common/types.h>
 #include <dev/dev.h>
 #include <driver/console.h>
 #include <lib/stdlib.h>

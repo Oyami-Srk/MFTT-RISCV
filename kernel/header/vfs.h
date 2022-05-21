@@ -85,7 +85,7 @@ struct vfs_inode {
     int             i_nlinks; // hard links
     int             i_counts; // opened files counts, when decrease to 0, write.
     size_t          i_size;   // bytes size
-    uint16_t        i_dev[2]; // major for vfs, minor for dev driver.
+    uint16_t        i_dev[2]; // major for vfs and io, minor for dev driver.
     enum inode_type i_type;
 
     inode_ops_t  *i_op;

@@ -16,6 +16,7 @@
 
 typedef struct __buffered_io_t {
     bool     valid;
+    uint16_t dev[2];
     uint64_t addr;
     char     data[BUFFER_SIZE];
 
@@ -23,5 +24,7 @@ typedef struct __buffered_io_t {
     sleeplock_t lock;
     list_head_t list;
 } buffered_io_t;
+
+buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr);
 
 #endif // __DEV_BUFFERED_IO_H__

@@ -7,6 +7,10 @@
 extern struct memory_info_t memory_info; // in memory.c
 
 static block_list *remove_from_free_list(block_list *p, int order) {
+    uintptr_t end = (uintptr_t)p + PG_SIZE * (1 << order);
+    assert(end > (uintptr_t)memory_info.usable_memory_start &&
+               end < (uintptr_t)memory_info.usable_memory_end,
+           "Block execeeded while remove.");
     if (p->prev) {
         p->prev->next = p->next;
         if (p->next)
@@ -24,6 +28,10 @@ static block_list *remove_from_free_list(block_list *p, int order) {
 }
 
 static block_list *attach_to_free_list(block_list *p, int order) {
+    uintptr_t end = (uintptr_t)p + PG_SIZE * (1 << order);
+    assert(end > (uintptr_t)memory_info.usable_memory_start &&
+               end < (uintptr_t)memory_info.usable_memory_end,
+           "Block execeeded while attach.");
     // must attach a single node
     p->next = memory_info.free_list[order];
     if (p->next)

@@ -5,8 +5,13 @@
 #ifndef __CONFIGS_H__
 #define __CONFIGS_H__
 
-#define MAX_PROC 32
-#define MAX_CPUS 8
+#define MAX_PROC   32
+#define MAX_CPUS   8
+#define MAX_DEV_ID 32
+
+#define DEV_TTY         1
+#define DEV_VIRTIO_DISK 2
+#define DEV_BUFFERED_IO 5
 
 // FIXME: BAD HARD CODE
 #define USE_SOFT_INT_COMP 0

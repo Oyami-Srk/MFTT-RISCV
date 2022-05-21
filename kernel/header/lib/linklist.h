@@ -26,7 +26,9 @@ static inline void __list_add(list_head_t *new, list_head_t *prev,
     new->prev  = prev;
 }
 
-#define list_add(new, head)      __list_add(new, (head), (head)->next)
+// head->new
+#define list_add(new, head) __list_add(new, (head), (head)->next)
+// new->head
 #define list_add_tail(new, head) __list_add(new, (head)->prev, (head))
 
 static inline void list_del(list_head_t *node) {
@@ -44,6 +46,14 @@ static inline void list_del(list_head_t *node) {
              container_of((head)->next, container_type, container_member);     \
          &entry->container_member != (head);                                   \
          entry = container_of(entry->container_member.next, container_type,    \
+                              container_member))
+
+#define list_foreach_entry_reverse(head, container_type, container_member,     \
+                                   entry)                                      \
+    for (container_type *entry =                                               \
+             container_of((head)->prev, container_type, container_member);     \
+         &entry->container_member != (head);                                   \
+         entry = container_of(entry->container_member.prev, container_type,    \
                               container_member))
 
 #endif // __LIB_LINKLIST_H__

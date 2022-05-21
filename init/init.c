@@ -11,7 +11,7 @@ int main() {
     int fd = openat(0, "/dev/tty", 0, 0);
     write(fd, "Hello File!\n", 12);
     char buf[32];
-    int  fd_disk = openat(0, "/dev/vda_raw", 0, 0);
+    int  fd_disk = openat(0, "/dev/vda", 0, 0);
     if (fd_disk == -1)
         write(fd, "No Disk found.\n", 15);
     else {

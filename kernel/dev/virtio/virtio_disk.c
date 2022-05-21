@@ -47,6 +47,8 @@ static int virtio_disk_read(file_t *file, char *buffer, size_t offset,
                             size_t len);
 static int virtio_disk_write(file_t *file, const char *buffer, size_t offset,
                              size_t len);
+static int virtio_disk_rw(uint64_t sector, char *buf, size_t count, int func);
+static int virtio_disk_rw_lba(size_t offset, char *buf, size_t len, int func);
 
 static inode_ops_t inode_ops = {
     .link = NULL, .lookup = NULL, .mkdir = NULL, .rmdir = NULL, .unlink = NULL};
@@ -138,13 +140,14 @@ void virtio_disk_setup(char *ioaddr, int interrupt, int interrupt_parent) {
                      (VIRTIO_CONFIG_S_DRIVER_OK));
 
     // Setup vfs
-    inode_t *inode  = vfs_alloc_inode(NULL);
-    inode->i_f_op   = &file_ops;
-    inode->i_op     = &inode_ops;
-    inode->i_dev[0] = 2;
-    inode->i_dev[1] = 1;
+    inode_t *inode   = vfs_alloc_inode(NULL);
+    inode->i_f_op    = &file_ops;
+    inode->i_op      = &inode_ops;
+    inode->i_dev[0]  = DEV_VIRTIO_DISK;
+    inode->i_dev[1]  = 1;
+    inode->i_fs_data = (void *)virtio_disk_rw_lba;
 
-    vfs_link_inode(inode, vfs_get_dentry("/dev", NULL), "vda_raw");
+    vfs_link_inode(inode, vfs_get_dentry("/dev", NULL), "raw_vda");
 
     spinlock_release(&virtio_disk.lock);
     kprintf("[DISK] Setup Virtio Disk complete.\n");
@@ -219,6 +222,24 @@ int virtio_disk_rw(uint64_t sector, char *buf, size_t count, int func) {
     virtio_queue_desc_free_chain(&virtio_disk.queue, idx[0]);
 
     spinlock_release(&virtio_disk.lock);
+    return count;
+}
+
+static int virtio_disk_rw_lba(size_t offset, char *buf, size_t len, int func) {
+    size_t rounded_size  = 0;
+    size_t sector        = offset / SECTOR_SIZE;
+    size_t sector_offset = offset % SECTOR_SIZE;
+    size_t elen          = len + sector_offset;
+    char  *kbuf;
+    if (elen < PG_SIZE)
+        kbuf =
+            (char *)kmalloc((rounded_size = ROUNDUP_WITH(SECTOR_SIZE, elen)));
+    else
+        kbuf = (char *)kmalloc((rounded_size = PG_ROUNDUP(elen)));
+    memset(kbuf, 0, rounded_size);
+    virtio_disk_rw(sector, kbuf, rounded_size / SECTOR_SIZE, func);
+    memcpy(buf, kbuf + sector_offset, len);
+    return len;
 }
 
 static int virtio_disk_read(file_t *file, char *buffer, size_t offset,
@@ -288,7 +309,7 @@ dev_driver_t virtio_mmio_disk = {
     .name             = "virtio_mmio_disk_register",
     .init             = init_virtio_mmio_disk,
     .loading_sequence = 1, // load before actually virtio mmio setup.
-    .dev_id           = 9 + 1,
+    .dev_id           = DEV_VIRTIO_DISK,
     .major_ver        = 0,
     .minor_ver        = 1,
     .private_data     = NULL,

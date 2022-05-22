@@ -1,8 +1,8 @@
-#include <types.h>
 #include "./utils.h"
 #include <driver/console.h>
 #include <lib/stdlib.h>
 #include <memory.h>
+#include <types.h>
 
 extern struct memory_info_t memory_info; // in memory.c
 
@@ -81,7 +81,7 @@ static int free_pages_of_power_2(char *p, int order) {
     if (p == NULL)
         return 1; // free a NULL block
     if (!(p >= memory_info.usable_memory_start &&
-          p <= memory_info.usable_memory_end))
+          p < memory_info.usable_memory_end))
         return 2; // free a block not managed by us
     int buddy_bit = xor_buddy_map(p, order);
     if (buddy_bit == 0 && order + 1 < MAX_BUDDY_ORDER) {

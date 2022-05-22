@@ -132,6 +132,8 @@ proc_t *myproc();
 void sleep(void *chan, spinlock_t *lock);
 void wakeup(void *chan);
 
+int do_fork(proc_t *parent);
+
 /* Note:
  *
     32位指令opcode最低2位为“11”，而16位变长指令可以是“00、01、10”，48位指令低5位位全1，64位指令低6位全1。

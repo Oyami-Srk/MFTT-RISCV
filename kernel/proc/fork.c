@@ -14,6 +14,8 @@ int do_fork(proc_t *parent) {
     // fork memory, TODO: but copy on write
     vm_copy(child->page_dir, parent->page_dir, parent->prog_image_start,
             parent->prog_break);
+    vm_copy(child->page_dir, parent->page_dir, parent->stack_top,
+            parent->stack_bottom);
 
     // fork prog info
     child->parent           = parent;

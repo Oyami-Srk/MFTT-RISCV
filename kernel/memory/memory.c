@@ -17,7 +17,7 @@ void init_memory() {
     kprintf("[MEM] Init memory From 0x%lx - 0x%lx\n", memory_info.memory_start,
             memory_info.memory_end);
     size_t pg_count =
-        (memory_info.memory_end - memory_info.usable_memory_start) / PG_SIZE;
+        (memory_info.memory_end - memory_info.memory_start) / PG_SIZE;
     size_t pg_info_size = pg_count * sizeof(struct page_info);
     size_t buddy_table_size =
         ((1 << (MAX_BUDDY_ORDER)) - 1) * pg_count / (1 << MAX_BUDDY_ORDER);
@@ -96,8 +96,11 @@ void init_memory() {
     kprintf("[MEM] Waste: %ld Kbytes.\n",
             (memory_info.usable_memory_end - (pg - max_block_size)) / 1024);
 #endif
+    // setup system page info
     for (size_t i = 0; i < pg_count; i++) {
-        if (GET_PAGE_BY_ID(memory_info, i) < memory_info.usable_memory_end)
+        char *page = GET_PAGE_BY_ID(memory_info, i);
+        if (page >= memory_info.usable_memory_start &&
+            page < memory_info.usable_memory_end)
             memory_info.pages_info[i].type = PAGE_TYPE_FREE | PAGE_TYPE_USABLE;
         else
             memory_info.pages_info[i].type = PAGE_TYPE_INUSE | PAGE_TYPE_SYSTEM;

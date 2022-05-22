@@ -2,6 +2,7 @@
 // Created by shiroko on 22-4-26.
 //
 
+#include "./utils.h"
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/linklist.h>
@@ -33,6 +34,8 @@
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
 
 _Static_assert(sizeof(pte_st) == sizeof(pte_t), "PTE Definination wrong.");
+
+extern struct memory_info_t memory_info;
 
 pte_t *walk_pages(pde_t page_dir, void *va, int alloc) {
     if ((uint64_t)va >= MAXVA)
@@ -74,6 +77,7 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
         pte->fields.U             = user;
         pte->fields.G             = global;
         //        *pte = PA2PTE(pa) | perm | PTE_V;
+        increase_page_ref(&memory_info, pa);
         if (a == last)
             break;
         a += PG_SIZE;
@@ -99,9 +103,9 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
             kpanic("vmunmap: not mapped");
         if (pte->fields.Type == 0)
             kpanic("vmunmap: not a leaf");
-        if (do_free) {
-            char *pa =
-                (char *)((uint64_t)pte->fields.PhyPageNumber << PG_SHIFT);
+        char *pa  = (char *)((uint64_t)pte->fields.PhyPageNumber << PG_SHIFT);
+        int   ref = decrease_page_ref(&memory_info, pa);
+        if (do_free && ref == 0) {
             page_free(pa, 1);
         }
         pte->raw = 0;
@@ -174,4 +178,41 @@ pde_t alloc_page_dir() {
     return pgdir;
 }
 
-int vm_copy(pde_t dst, pde_t src, char *start, char *end) {}
+int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
+    // debug
+    kprintf("do vm copy at va 0x%lx ~ 0x%lx.\n", start, end);
+
+    char   *a;
+    char   *va     = (char *)PG_ROUNDDOWN(start);
+    char   *va_end = (char *)PG_ROUNDUP(end);
+    pte_st *pte;
+
+    for (a = va; a < va_end; a += PG_SIZE) {
+        if ((pte = (pte_st *)walk_pages(src, a, 0)) == 0)
+            kpanic("vm_copy cannot walk pages");
+        if (pte->fields.V == 0)
+            kpanic("vm_copy: source not mapped");
+        if (pte->fields.Type == 0)
+            kpanic("vm_copy: not a leaf");
+        // do copy map
+        char *pa = (char *)((uintptr_t)(pte->fields.PhyPageNumber << PG_SHIFT));
+        pte_st *cpte;
+        if ((cpte = (pte_st *)walk_pages(dst, a, 1)) == NULL)
+            kpanic("Cannot walk child pte.");
+        if (cpte->fields.V) {
+            kpanic("Child pte remap while copy.");
+        }
+        cpte->fields.PhyPageNumber = pte->fields.PhyPageNumber;
+        cpte->fields.V             = 1;
+        cpte->fields.U             = pte->fields.U;
+        cpte->fields.G             = pte->fields.G;
+        assert(cpte->fields.U == 1, "Must be user area for vm_copy");
+        increase_page_ref(&memory_info, pa);
+        // set read-only for CoW
+        uint8_t type = pte->fields.Type;
+        type &= ~PTE_TYPE_BIT_W; // clear write flag
+        cpte->fields.Type = pte->fields.Type = type;
+    }
+}
+
+void do_pagefault() {}

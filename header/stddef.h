@@ -37,8 +37,6 @@ typedef uint32_t uintptr_t;
 typedef uintptr_t size_t;
 typedef intptr_t  ssize_t;
 
-typedef int pid_t;
-
 #define NULL ((void *)0)
 
 #define SIGCHLD 17

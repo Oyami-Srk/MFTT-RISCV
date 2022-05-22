@@ -5,6 +5,7 @@
 #include <environment.h>
 #include <lib/stdlib.h>
 #include <lib/sys/spinlock.h>
+#include <stddef.h>
 #include <syscall.h>
 #include <vfs.h>
 
@@ -139,6 +140,21 @@ sysret_t sys_lseek(struct trap_context *trapframe) {
     }
 }
 
+sysret_t sys_clone(struct trap_context *trapframe) {
+    int   flags = (int)trapframe->a0;
+    char *stack = (char *)trapframe->a1;
+    int   ptid  = (int)trapframe->a2;
+    int   tls   = (int)trapframe->a3;
+    int   ctid  = (int)trapframe->a4;
+    if (flags == SIGCHLD) {
+        proc_t *parent = myproc();
+        return do_fork(parent);
+    } else {
+        // TODO: impl this
+        return -1;
+    }
+}
+
 // Syscall table
 extern sysret_t sys_test(struct trap_context *);
 // clang-format off
@@ -165,7 +181,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_umount2]= NULL,
     [SYS_mount]= NULL,
     [SYS_fstat]= NULL,
-    [SYS_clone]= NULL,
+    [SYS_clone]= sys_clone,
     [SYS_execve]= NULL,
     [SYS_wait4]= NULL,
     [SYS_exit]= NULL,

@@ -6,6 +6,7 @@
 #define __TYPES_H__
 
 typedef _Bool bool;
+
 #define TRUE  1
 #define FALSE 0
 #define true  1

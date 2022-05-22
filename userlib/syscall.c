@@ -2,6 +2,7 @@
 // Created by shiroko on 22-5-6.
 //
 
+#include <stddef.h>
 #include <syscall.h>
 
 #define USED __attribute__((used))
@@ -98,6 +99,7 @@ int mount(const char *dev, const char *dir, const char *fstype, uint64_t flags,
     return SYSCALL(SYS_mount, dev, dir, fstype, flags, data);
 }
 int fstat(int fd, struct kstat *kst) { return SYSCALL(SYS_fstat, fd, kst); }
+int fork() { return SYSCALL(SYS_clone, SIGCHLD, 0); }
 int clone(int flags, char *stack, int ptid, int tls, int ctid) {
     return SYSCALL(SYS_clone, flags, stack, ptid, tls, ctid);
 }

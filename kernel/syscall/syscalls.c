@@ -54,7 +54,6 @@ sysret_t sys_open(struct trap_context *trapframe) {
     int flags = (int)(trapframe->a3 & 0xFFFFFFFF);
     int mode  = (int)(trapframe->a4 & 0xFFFFFFFF);
 
-    int       new_fd = 1;
     dentry_t *dentry = vfs_get_dentry(filename, NULL);
     kfree(filename);
     if (!dentry)
@@ -63,7 +62,7 @@ sysret_t sys_open(struct trap_context *trapframe) {
     if (!file)
         return -1;
     file_t **ftable = myproc()->files;
-    for (int i = 0; i < MAX_FILE_OPEN; i++) {
+    for (int i = 3; i < MAX_FILE_OPEN; i++) {
         if (ftable[i] == NULL) {
             ftable[i] = file;
             return i;
@@ -124,6 +123,22 @@ sysret_t sys_write(struct trap_context *trapframe) {
     return r;
 }
 
+sysret_t sys_lseek(struct trap_context *trapframe) {
+    int    fd     = (int)trapframe->a0;
+    size_t offset = trapframe->a1;
+    int    whence = (int)trapframe->a2;
+
+    file_t **ftables = myproc()->files;
+    if (ftables[fd]) {
+        file_t *f = ftables[fd];
+        // TODO: check whence
+        f->f_offset += offset;
+        return (sysret_t)f->f_offset;
+    } else {
+        return -1;
+    }
+}
+
 // Syscall table
 extern sysret_t sys_test(struct trap_context *);
 // clang-format off
@@ -137,6 +152,33 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_close] = sys_close,
     [SYS_write] = sys_write,
     [SYS_read] = sys_read,
+    [SYS_lseek] = sys_lseek,
+    [SYS_getcwd]= NULL,
+    [SYS_pipe2]= NULL,
+    [SYS_dup]= NULL,
+    [SYS_dup3]= NULL,
+    [SYS_chdir]= NULL,
+    [SYS_getdents64]= NULL,
+    [SYS_linkat]= NULL,
+    [SYS_unlinkat]= NULL,
+    [SYS_mkdirat]= NULL,
+    [SYS_umount2]= NULL,
+    [SYS_mount]= NULL,
+    [SYS_fstat]= NULL,
+    [SYS_clone]= NULL,
+    [SYS_execve]= NULL,
+    [SYS_wait4]= NULL,
+    [SYS_exit]= NULL,
+    [SYS_getppid]= NULL,
+    [SYS_getpid]= NULL,
+    [SYS_brk]= NULL,
+    [SYS_munmap]= NULL,
+    [SYS_mmap]= NULL,
+    [SYS_times]= NULL,
+    [SYS_uname]= NULL,
+    [SYS_sched_yield]= NULL,
+    [SYS_gettimeofday]= NULL,
+    [SYS_nanosleep]= NULL,
 };
 // clang-format on
 

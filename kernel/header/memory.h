@@ -5,10 +5,10 @@
 #ifndef __MEMORY_H__
 #define __MEMORY_H__
 
-#include <types.h>
 #include <lib/bitset.h>
 #include <lib/linklist.h>
 #include <lib/sys/spinlock.h>
+#include <types.h>
 
 /* Built-in memory maps */
 #define HARDWARE_VBASE 0xC0000000
@@ -134,5 +134,7 @@ pde_t alloc_page_dir();
 void *umemcpy(void *dst, const void *src, size_t size);
 char *ustrcpy_out(char *ustr);
 void  ustrcpy_in(char *ustr, char *kbuf);
+
+int vm_copy(pde_t dst, pde_t src, char *start, char *end);
 
 #endif // __MEMORY_H__

@@ -24,19 +24,22 @@ void setup_init_process() {
 
     elf_load_to_process(proc, memory_reader, (void *)_init_code_start);
 
-    // setup stack
-    char *process_stack = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
-
-    map_pages(proc->page_dir, (void *)(PROC_STACK_BASE - PG_SIZE),
-              process_stack, PG_SIZE, PTE_TYPE_RW, true, false);
-
-    uint64_t satp = ((uint64_t)proc->page_dir / PG_SIZE) |
-                    ((uint64_t)PAGING_MODE_SV39 << 60);
-    proc->page_csr = satp;
-
-    proc->trapframe.sp = PROC_STACK_BASE;
+    // setup init user stack
+    size_t stack_pages = PG_ROUNDUP(PROC_STACK_SIZE) / PG_SIZE;
+    char  *process_stack =
+        page_alloc(stack_pages, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
+    if (!process_stack)
+        kpanic("Cannot alloc %d page(s) to init process stack.", stack_pages);
+    char *process_stack_top = (char *)(PROC_STACK_BASE - stack_pages * PG_SIZE);
+    map_pages(proc->page_dir, (void *)(process_stack_top), process_stack,
+              PROC_STACK_SIZE, PTE_TYPE_RW, true, false);
+    proc->trapframe.sp = (uintptr_t)PROC_STACK_BASE;
+    proc->stack_bottom = (char *)PROC_STACK_BASE;
+    proc->stack_top    = process_stack_top;
 
     proc->status |= PROC_STATUS_READY;
+
+    spinlock_release(&proc->lock);
 }
 
 void init_proc() {
@@ -44,13 +47,15 @@ void init_proc() {
     for (uint64_t i = 0; i < MAX_PROC; i++) {
         spinlock_init(&env.proc[i].lock);
     }
+    // leave proc 0 alone
+    set_bit(env.proc_bitmap, 0);
+    env.proc_count++;
     spinlock_release(&env.proc_lock);
-    // Make PID 0 as systask (never return to user space.)
-    proc_alloc();
     // Setup init process as PID 1
     setup_init_process();
 }
 
+// return process with locked
 proc_t *proc_alloc() {
     // proc_t *proc = (proc_t *)kmalloc(sizeof(proc_t));
     // memset(proc, 0, sizeof(proc_t));
@@ -79,15 +84,33 @@ proc_t *proc_alloc() {
         spinlock_release(&proc->lock);
         return NULL;
     }
-    proc->status = PROC_STATUS_NORMAL;
+    // open 0,1,2 all to /dev/tty
+    dentry_t *dentry = vfs_get_dentry("/dev/tty", NULL);
+    file_t   *file   = vfs_open(dentry, 0);
+    proc->files[0]   = file;
+    proc->files[1]   = file;
+    proc->files[2]   = file;
+    proc->status     = PROC_STATUS_NORMAL;
 
     proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
     proc->kernel_task_context.ra = (uintptr_t)user_trap_return;
-    spinlock_release(&proc->lock);
+
+    // setup satp
+    uint64_t satp = ((uint64_t)proc->page_dir / PG_SIZE) |
+                    ((uint64_t)PAGING_MODE_SV39 << 60);
+    proc->page_csr = satp;
+
     return proc;
 }
 
-void proc_free(proc_t *proc) {}
+void proc_free(proc_t *proc) {
+    // must hold lock
+    assert(proc->lock.lock, "Proc free with unlocked.");
+    // TODO: free resource. walk pde and decreate reference count
+    spinlock_acquire(&env.proc_lock);
+    clear_bit(env.proc_bitmap, proc->pid);
+    spinlock_release(&env.proc_lock);
+}
 
 // Return current CPU process.
 proc_t *myproc() {

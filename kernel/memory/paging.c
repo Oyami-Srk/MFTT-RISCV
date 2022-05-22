@@ -65,7 +65,7 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
         if ((pte = (pte_st *)walk_pages(page_dir, a, 1)) == NULL)
             return -1;
         if (pte->fields.V) {
-            kprintf("[MEM] Paging rempa for VA 0x%lx => PA 0x%lx.\n", va, pa);
+            kprintf("[MEM] Paging remap for VA 0x%lx => PA 0x%lx.\n", va, pa);
             return -2;
         }
         pte->fields.PhyPageNumber = (uint64_t)pa >> PG_SHIFT;
@@ -173,3 +173,5 @@ pde_t alloc_page_dir() {
     }
     return pgdir;
 }
+
+int vm_copy(pde_t dst, pde_t src, char *start, char *end) {}

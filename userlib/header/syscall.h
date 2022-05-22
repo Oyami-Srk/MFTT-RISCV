@@ -35,6 +35,7 @@ int mount(const char *dev, const char *dir, const char *fstype, uint64_t flags,
           const void *data);
 int fstat(int fd, struct kstat *kst);
 int clone(int flags, char *stack, int ptid, int tls, int ctid);
+int fork();
 int execve(const char *path, char *const argv[], char *const envp[]);
 int wait4(int pid, int *status, int options);
 void      exit(int ec);

@@ -2,31 +2,35 @@
 // Created by shiroko on 22-5-6.
 //
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <syscall.h>
 
 int main() {
-    print("Hello world.\n");
     syscall_test(0, 0);
-    int fd = openat(0, "/dev/tty", 0, 0);
-    write(fd, "Hello File!\n", 12);
-    char buf[32];
-    int  fd_disk = openat(0, "/dev/vda", 0, 0);
+    printf("Hello world.!\n");
+    int fd_disk = openat(0, "/dev/vda", 0, 0);
     if (fd_disk == -1)
-        write(fd, "No Disk found.\n", 15);
+        printf("Disk /dev/vda not found.\n");
     else {
+        char buf[32];
+        lseek(fd_disk, 119, 0);
         read(fd_disk, buf, 0x20);
-        read(fd_disk, buf, 0x20);
-        read(fd_disk, buf, 0x20);
-        read(fd_disk, buf, 0x10);
-        read(fd_disk, buf, 0x8);
-        read(fd_disk, buf, 0x20);
-        write(fd, buf, 32);
+        buf[31] = '\0';
+        printf("lseek and read /dev/vda test: %s\n", buf);
     }
-    for (;;) {
-        itoa(ticks(), buf, 10);
-        print(buf);
-        print("\n");
-        sleep(2);
+    int ret = fork();
+    if (ret <= 0) {
+        printf("I am parent, child pid: %d.\n", ret);
+        for (;;) {
+            printf("ticks: %d.\n", ticks());
+            sleep(2);
+        }
+    } else {
+        printf("I am child. parent pid: %d.\n", getppid());
+        for (;;) {
+            printf("ticks: %d.\n", ticks());
+            sleep(5);
+        }
     }
 }

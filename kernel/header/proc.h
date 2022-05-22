@@ -5,9 +5,9 @@
 #ifndef __PROC_H__
 #define __PROC_H__
 
-#include <types.h>
 #include <lib/sys/spinlock.h>
 #include <memory.h>
+#include <types.h>
 #include <vfs.h>
 
 typedef uint32_t pid_t;
@@ -107,10 +107,13 @@ struct __proc_t {
     spinlock_t          lock;
     char                name[PROC_NAME_SIZE];
     void               *waiting_chan;
+    // Stack info
+    char *stack_top;    // in va
+    char *stack_bottom; // in va, not contains end
     // Elf program infos
     size_t prog_size;
-    char  *prog_break;       // in va
     char  *prog_image_start; // in va
+    char  *prog_break;       // in va, not contains end
     char  *prog_brk_pg_end;
     // File table
 #define MAX_FILE_OPEN 32

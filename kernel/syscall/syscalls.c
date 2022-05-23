@@ -20,17 +20,6 @@ sysret_t sys_ticks(struct trap_context *trapframe) {
     return ret;
 }
 
-#include <driver/console.h>
-sysret_t sys_print(struct trap_context *trapframe) {
-    // temporary set sum
-    CSR_RWOR(sstatus, SSTATUS_SUM);
-    char *buffer = (char *)trapframe->a0;
-    assert(buffer, "Print with null buffer.");
-    kprintf("%s", buffer);
-    CSR_RWAND(sstatus, ~SSTATUS_SUM);
-    return 0;
-}
-
 sysret_t sys_sleep(struct trap_context *trapframe) {
     uint64_t t     = (uint64_t)trapframe->a0;
     uint64_t ticks = 0;
@@ -74,7 +63,15 @@ sysret_t sys_open(struct trap_context *trapframe) {
 }
 
 sysret_t sys_close(struct trap_context *trapframe) {
-    int fd = (int)(trapframe->a0 & 0xFFFFFFFF);
+    int      fd      = (int)(trapframe->a0 & 0xFFFFFFFF);
+    file_t **ftables = myproc()->files;
+    if (ftables[fd]) {
+        vfs_close(ftables[fd]);
+        ftables[fd] = NULL;
+        return 0;
+    } else {
+        return -1;
+    }
     return 0;
 }
 
@@ -163,8 +160,8 @@ sysret_t sys_getppid(struct trap_context *trapframe) {
 }
 
 sysret_t sys_mkdirat(struct trap_context *trapframe) {
-    int         fd       = (int)trapframe->a0;
-    const char *filename = ustrcpy_out((char *)(trapframe->a1));
+    int   fd       = (int)trapframe->a0;
+    char *filename = ustrcpy_out((char *)(trapframe->a1));
     if (!filename)
         return -1;
     int mode = (int)trapframe->a1;
@@ -173,6 +170,7 @@ sysret_t sys_mkdirat(struct trap_context *trapframe) {
     if (ftables[fd]) {
         file_t   *f    = ftables[fd];
         dentry_t *dent = vfs_mkdir(f->f_dentry, filename, mode);
+        kfree(filename);
         if (!dent)
             return -2;
         file_t *df = vfs_open(dent, mode);
@@ -187,18 +185,30 @@ sysret_t sys_mkdirat(struct trap_context *trapframe) {
         vfs_close(df);
         return -4;
     } else {
+        kfree(filename);
         return -1;
     }
 }
 
-sysret_t sys_mount(struct trap_context *trapframe) {}
+sysret_t sys_mount(struct trap_context *trapframe) {
+    char *dev        = ustrcpy_out((char *)trapframe->a0);
+    char *mountpoint = ustrcpy_out((char *)trapframe->a1);
+    char *fstype     = ustrcpy_out((char *)trapframe->a2);
+    void *flags      = (void *)trapframe->a3;
+    // TODO: FS declare flags size and kernel copy in kspace, currently NULL
+    int r = vfs_mount(dev, mountpoint, fstype, flags);
+    kfree(fstype);
+    kfree(mountpoint);
+    kfree(dev);
+    return r;
+}
 
 // Syscall table
 extern sysret_t sys_test(struct trap_context *);
 // clang-format off
 static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_ticks] = sys_ticks,
-    [SYS_print] = sys_print,
+    [SYS_print] = NULL,
     [SYS_sleep] = sys_sleep,
     [SYS_test] = sys_test, // inside test.c, remove when stable
 

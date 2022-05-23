@@ -91,6 +91,7 @@ proc_t *proc_alloc() {
     proc->files[1]   = file;
     proc->files[2]   = file;
     proc->status     = PROC_STATUS_NORMAL;
+    proc->cwd        = vfs_get_root();
 
     proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
     proc->kernel_task_context.ra = (uintptr_t)user_trap_return;

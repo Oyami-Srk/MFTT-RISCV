@@ -120,7 +120,7 @@ size_t memory_available();
 char *page_alloc(size_t pages, int attr);
 int   page_free(char *p, size_t pages);
 
-void  kfree(char *p);
+void  kfree(void *p);
 char *kmalloc(size_t size);
 
 void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free);

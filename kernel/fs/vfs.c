@@ -5,6 +5,7 @@
 #include <driver/console.h>
 #include <lib/string.h>
 #include <memory.h>
+#include <proc.h>
 #include <vfs.h>
 
 inode_t root_inode = {.i_ino = 1, .i_size = 0};
@@ -52,102 +53,92 @@ void init_vfs() {
     kprintf("\n");
 }
 
-dentry_t *vfs_get_parent_dentry(const char *path, dentry_t *cwd, char *name) {
+dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
+    // TODO: consider cache the search
     if (cwd == NULL)
         cwd = &root_dentry;
-    char   fname[32];
-    size_t len = strlen(path);
-
-    int last = 0;
-    for (int i = 0; i <= len; i++) {
-        if (i == len || path[i] == '/') {
-            memcpy(fname, path + last, i - last + 1);
-            fname[i - last] = '\0';
-            kprintf(":%s\n", fname);
-            int  l     = i - last;
-            bool found = false;
-            last       = i + 1;
-            if (l == 0 || (l == 1 && fname[0] == '.')) {
-                continue;
-            } else if (l == 2 && fname[0] == '.' && fname[1] == '.') {
-                if (cwd->d_parent)
-                    cwd = cwd->d_parent;
+    if (*path == '/')
+        cwd = &root_dentry, path++;
+    if (!*path) {
+        name[0] = '/';
+        name[1] = '\0';
+        return NULL;
+    }
+    dentry_t   *par = cwd;
+    char        fname[32];
+    char        dname[32];
+    char const *last = path;
+    bool        meet = false;
+    for (; *path; path++) {
+        if (!*path || *path == '/') {
+            memcpy(dname, last, path - last);
+            dname[path - last] = '\0';
+            meet               = true;
+            last               = path + 1;
+        } else if (meet) {
+            if (strcmp("..", dname) == 0) {
+                if (par->d_parent)
+                    par = par->d_parent;
                 else
-                    cwd = &root_dentry;
-                continue;
-            }
-            list_foreach_entry(&cwd->d_subdirs, dentry_t, d_subdirs_list, dir) {
-                if (strcmp(fname, dir->d_name) == 0) {
-                    cwd   = dir;
-                    found = true;
-                    break;
+                    par = &root_dentry;
+            } else if (dname[0] == '\0' || strcmp(".", dname) == 0) {
+                // skip
+            } else {
+                bool found = false;
+                list_foreach_entry(&par->d_subdirs, dentry_t, d_subdirs_list,
+                                   dir) {
+                    if (strcmp(dname, dir->d_name) == 0) {
+                        par   = dir;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    inode_t *dir_inode = par->d_inode;
+                    if (!dir_inode || !dir_inode->i_op->lookup)
+                        return NULL;
+                    dentry_t *r;
+                    int ret = dir_inode->i_op->lookup(dir_inode, dname, &r);
+                    if (ret != 0 || !r)
+                        return NULL;
+                    list_add(&r->d_subdirs_list, &cwd->d_subdirs);
+                    par = r;
                 }
             }
-            if (!found) {
-                inode_t *dir_inode = cwd->d_inode;
-                if (!dir_inode || !dir_inode->i_op->lookup)
-                    return NULL;
-                dentry_t *r;
-                int       ret = dir_inode->i_op->lookup(dir_inode, fname, &r);
-                if (ret != 0)
-                    return NULL;
-                list_add(&r->d_subdirs_list, &cwd->d_subdirs);
-                cwd = r;
-            }
+            meet = false;
         }
     }
-    return cwd;
+    strcpy(name, (char *)last);
+    return par;
 }
 
 dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
-    // TODO: better this method
-    if (cwd == NULL || path[0] == '/')
-        cwd = &root_dentry;
-
-    char   fname[32];
-    size_t len = strlen(path);
-
-    if (path[len - 1] == '/')
-        len--;
-
-    int last = 0;
-    for (int i = 0; i <= len; i++) {
-        if (i == len || path[i] == '/') {
-            memcpy(fname, path + last, i - last + 1);
-            fname[i - last] = '\0';
-            int  l          = i - last;
-            bool found      = false;
-            last            = i + 1;
-            if (l == 0 || (l == 1 && fname[0] == '.')) {
-                continue;
-            } else if (l == 2 && fname[0] == '.' && fname[1] == '.') {
-                if (cwd->d_parent)
-                    cwd = cwd->d_parent;
-                else
-                    cwd = &root_dentry;
-                continue;
-            }
-            list_foreach_entry(&cwd->d_subdirs, dentry_t, d_subdirs_list, dir) {
-                if (strcmp(fname, dir->d_name) == 0) {
-                    cwd   = dir;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                inode_t *dir_inode = cwd->d_inode;
-                if (!dir_inode || !dir_inode->i_op->lookup)
-                    return NULL;
-                dentry_t *r;
-                int       ret = dir_inode->i_op->lookup(dir_inode, fname, &r);
-                if (ret != 0)
-                    return NULL;
-                list_add(&r->d_subdirs_list, &cwd->d_subdirs);
-                cwd = r;
-            }
+    char      cname[32];
+    dentry_t *parent = vfs_get_parent_dentry(path, cwd, cname);
+    if (!parent) {
+        if (strcmp("/", cname) == 0)
+            return &root_dentry;
+        return NULL;
+    }
+    if (strcmp("..", cname) == 0)
+        return parent->d_parent;
+    else if (strcmp(".", cname) == 0)
+        return parent;
+    list_foreach_entry(&parent->d_subdirs, dentry_t, d_subdirs_list, dir) {
+        if (strcmp(cname, dir->d_name) == 0) {
+            return dir;
         }
     }
-    return cwd;
+    // not found
+    inode_t *dir_inode = parent->d_inode;
+    if (!dir_inode || !dir_inode->i_op->lookup)
+        return NULL;
+    dentry_t *r;
+    int       ret = dir_inode->i_op->lookup(dir_inode, cname, &r);
+    if (ret != 0 || !r)
+        return NULL;
+    list_add(&r->d_subdirs_list, &cwd->d_subdirs);
+    return r;
 }
 
 inode_t *vfs_alloc_inode(superblock_t *sb) {
@@ -236,18 +227,10 @@ int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
 
 dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
     char dname[32];
-    kprintf("gpd test.\n");
-    char *a[] = {"/", "/dev", "/dev/tty", "/dev/.././/dev///./tty"};
-    for (int i = 0; i < 4; i++) {
-        kprintf("Test %s : ", a[i]);
-        dentry_t *d = vfs_get_parent_dentry(a[i], NULL, dname);
-        if (d)
-            kprintf("parent name: %s, dname: %s.", d->d_name, dname);
-        else
-            kprintf("None");
-        kprintf("\n");
-    }
-    parent          = vfs_get_parent_dentry(path, parent, dname);
+    parent = vfs_get_parent_dentry(path, parent, dname);
+    if (dname[0] == '.' &&
+        (dname[1] == '\0' || (dname[2] == '.' && dname[3] == '\0')))
+        return NULL; // try to mkdir parent or self
     inode_t *pinode = parent->d_inode;
     inode_t *dinode = NULL;
     list_foreach_entry(&parent->d_subdirs, dentry_t, d_subdirs_list, dent) {
@@ -272,4 +255,47 @@ dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
     strcpy(new->d_name, dname);
     list_add(&new->d_subdirs_list, &parent->d_subdirs);
     return new;
+}
+
+dentry_t *vfs_get_root() { return &root_dentry; }
+
+int vfs_mount(const char *dev, const char *mountpoint, const char *fstype,
+              void *flags) {
+    // search fs
+    filesystem_t *fs = NULL;
+    list_foreach_entry(&filesystems_list, filesystem_t, fs_fslist, fs_) {
+        if (strcmp(fstype, fs_->fs_name) == 0)
+            fs = fs_;
+    }
+    if (!fs)
+        return -1;
+    dentry_t *cwd = NULL;
+    if (myproc())
+        cwd = myproc()->cwd;
+    dentry_t *dent_dev = vfs_get_dentry(dev, cwd);
+    dentry_t *dent_mp  = vfs_get_dentry(mountpoint, cwd);
+    if (!dent_dev)
+        return -3;
+    if (!dent_mp)
+        return -4;
+    if (dent_mp->d_type == D_TYPE_MOUNTED)
+        return -6; // already mounted
+    // TODO: check fs dev type
+    if (!fs->fs_op->mount)
+        return -2;
+    superblock_t *sb     = vfs_create_superblock();
+    *sb                  = (superblock_t){.s_op      = NULL,
+                                          .s_dev[0]  = dent_dev->d_inode->i_dev[0],
+                                          .s_dev[1]  = dent_dev->d_inode->i_dev[1],
+                                          .s_fs_data = NULL,
+                                          .s_root    = NULL};
+    superblock_t *ret_sb = fs->fs_op->mount(sb, dent_dev->d_inode, flags);
+    if (!ret_sb) {
+        vfs_destroy_superblock(sb);
+        return -5;
+    }
+    // mount superblock
+    dent_mp->d_inode = ret_sb->s_root;
+    dent_mp->d_type  = D_TYPE_MOUNTED;
+    return 0;
 }

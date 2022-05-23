@@ -65,7 +65,7 @@ struct vfs_superblock_ops {
 
 struct vfs_fs_ops {
     int (*init_fs)();
-    struct vfs_superblock *(*mount)(struct vfs_superblock *, void *);
+    superblock_t *(*mount)(superblock_t *, inode_t *, void *);
 };
 
 typedef struct vfs_inode_ops      inode_ops_t;
@@ -108,6 +108,7 @@ struct vfs_inode {
 #define D_TYPE_FILE       1
 #define D_TYPE_DIR        2
 #define D_TYPE_NOT_LOADED 3
+#define D_TYPE_MOUNTED    4
 
 struct vfs_dir_entry {
     dentry_t *d_parent; // 目录项的父目录项
@@ -121,7 +122,7 @@ struct vfs_dir_entry {
 };
 
 struct vfs_superblock {
-    uint16_t          s_dev;
+    uint16_t          s_dev[2];
     superblock_ops_t *s_op;
 
     inode_t    *s_root;       // root inode
@@ -155,6 +156,8 @@ dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd);
 inode_t  *vfs_alloc_inode(superblock_t *sb);
 int       vfs_write_inode(inode_t *inode);
 int       vfs_link_inode(inode_t *inode, dentry_t *parent, const char *name);
+superblock_t *vfs_create_superblock();
+void          vfs_destroy_superblock(superblock_t *sb);
 
 file_t *vfs_open(dentry_t *dentry, int mode);
 int     vfs_close(file_t *file);
@@ -162,6 +165,10 @@ int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
 int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);
 
 dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode);
+
+dentry_t *vfs_get_root();
+int       vfs_mount(const char *dev, const char *mountpoint, const char *fstype,
+                    void *flags);
 
 // Utils for fs
 #define ADD_FILESYSTEM(fs)                                                     \

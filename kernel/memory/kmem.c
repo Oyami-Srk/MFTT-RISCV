@@ -192,7 +192,7 @@ char *kmalloc(size_t size) {
     return block->mem.mem;
 }
 
-void kfree(char *p) {
+void kfree(void *p) {
     spinlock_acquire(&kmem_lock);
     kmem_block *block = (kmem_block *)(p - kmem_block_head_size);
     assert(block->cookie == KMEM_COOKIE, "Memory block invalid at kfree.");

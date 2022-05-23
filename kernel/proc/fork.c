@@ -42,6 +42,8 @@ int do_fork(proc_t *parent) {
             child->files[fp] = f;
         }
     }
+    // fork cwd
+    child->cwd = parent->cwd;
 
     // fork others
     child->user_pc = parent->user_pc;

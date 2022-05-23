@@ -1,4 +1,3 @@
-#include <types.h>
 #include <dev/dev.h>
 #include <driver/console.h>
 #include <environment.h>
@@ -11,6 +10,7 @@
 #include <riscv.h>
 #include <scheduler.h>
 #include <trap.h>
+#include <types.h>
 #include <vfs.h>
 
 _Static_assert(sizeof(void *) == sizeof(uint64_t), "Target must be 64bit.");
@@ -23,6 +23,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         kprintf("-*-*-*-*-*-*-*-*-*-*-*-*- My First Touch To RISC-V Starts "
                 "Here... -*-*-*-*-*-*-*-*-*-*-*-*-\n");
 
+        kprintf("Size of proc: %d.\n", sizeof(proc_t));
         init_env();
         init_trap();
 

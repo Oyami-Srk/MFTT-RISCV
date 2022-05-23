@@ -151,8 +151,15 @@ sysret_t sys_clone(struct trap_context *trapframe) {
         return do_fork(parent);
     } else {
         // TODO: impl this
-        return -1;
     }
+    trapframe->a0 = -1;
+}
+
+sysret_t sys_getppid(struct trap_context *trapframe) {
+    proc_t *proc = myproc();
+    if (proc->parent)
+        return proc->parent->pid;
+    return 0;
 }
 
 // Syscall table
@@ -185,7 +192,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_execve]= NULL,
     [SYS_wait4]= NULL,
     [SYS_exit]= NULL,
-    [SYS_getppid]= NULL,
+    [SYS_getppid]= sys_getppid,
     [SYS_getpid]= NULL,
     [SYS_brk]= NULL,
     [SYS_munmap]= NULL,
@@ -214,5 +221,6 @@ void do_syscall(struct trap_context *trapframe) {
         return;
     }
     // TODO: strace
-    trapframe->a0 = syscall_table[syscall_id](trapframe);
+    sysret_t ret  = syscall_table[syscall_id](trapframe);
+    trapframe->a0 = ret;
 }

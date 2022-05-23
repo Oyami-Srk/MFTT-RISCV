@@ -2,13 +2,13 @@
 // Created by shiroko on 22-4-30.
 //
 
-#include <types.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>
 #include <lib/sys/SBI.h>
 #include <riscv.h>
 #include <trap.h>
+#include <types.h>
 
 spinlock_t exception_lock = {.cpu = 0, .lock = 0};
 
@@ -96,27 +96,41 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
     } else {
         //        spinlock_acquire(&exception_lock);
         // cause by exception
-        exception_printf(
-            "\n\n====================CPU %d=======================\n\n",
-            cpuid());
-        //        dump_trapframe(tf);
-        exception_printf("Exception %d[%d]: %s Caused by code at 0x%lx with "
-                         "stval: 0x%lx.\n",
-                         scause, cpuid(),
-                         scause < 16 ? exception_description[scause]
-                                     : exception_description[4],
-                         sepc, stval);
-        if (myproc()) {
-            proc_t *proc = myproc();
-            exception_printf("In Process: %d.\n", proc->pid);
+
+        if ((scause == 15 || scause == 13 || scause == 12) &&
+            stval < KERN_BASE) {
+            // page fault.
+            if (do_pagefault((char *)stval,
+                             (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF)
+                                     << PG_SHIFT)) != 0) {
+                kpanic("do page fault failed.\n");
+            }
+        } else {
+            kprintf("\n\n====================CPU %d=======================\n\n",
+                    cpuid());
+            //        dump_trapframe(tf);
+            kprintf("Exception %d[%d]: %s Caused by code at 0x%lx with "
+                    "stval: 0x%lx.\n",
+                    scause, cpuid(),
+                    scause < 16 ? exception_description[scause]
+                                : exception_description[4],
+                    sepc, stval);
+            if (myproc()) {
+                proc_t *proc = myproc();
+                exception_printf("In Process: %d.\n", proc->pid);
+            }
+            kprintf("\n\n================================================\n\n",
+                    cpuid());
+            //        spinlock_release(&exception_lock);
+            //        SBI_shutdown();
+            kprintf("env: 0x%lx~0x%lx, inside?:%d.\n", &env,
+                    (uintptr_t)(&env) + sizeof(env),
+                    stval < (uintptr_t)(&env) + sizeof(env) &&
+                        stval >= (uintptr_t)(&env));
+            kprintf("0x%lx\n", stval);
+            while (1)
+                ;
         }
-        exception_printf(
-            "\n\n================================================\n\n",
-            cpuid());
-        //        spinlock_release(&exception_lock);
-        //        SBI_shutdown();
-        while (1)
-            ;
     }
     CSR_Write(sepc, sepc);
     CSR_Write(sstatus, sstatus);

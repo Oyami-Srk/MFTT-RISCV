@@ -76,8 +76,8 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
         pte->fields.V             = 1;
         pte->fields.U             = user;
         pte->fields.G             = global;
-        //        *pte = PA2PTE(pa) | perm | PTE_V;
-        increase_page_ref(&memory_info, pa);
+        // *pte = PA2PTE(pa) | perm | PTE_V;
+        // increase_page_ref(&memory_info, pa);
         if (a == last)
             break;
         a += PG_SIZE;
@@ -215,4 +215,42 @@ int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
     }
 }
 
-void do_pagefault() {}
+int do_pagefault(char *caused_va, pde_t pde) {
+    proc_t *proc = myproc();
+    assert(proc->page_dir == pde,
+           "PDE not identical to currently holding process.");
+    if ((uintptr_t)caused_va >= KERN_BASE) {
+        kprintf("not use page fault.");
+        return -3;
+    }
+    kprintf("DO PF for 0x%lx, pde: 0x%lx.\n", caused_va, pde);
+    pte_st *pte = (pte_st *)walk_pages(pde, caused_va, 0);
+    char   *pa  = (char *)((uintptr_t)(pte->fields.PhyPageNumber << PG_SHIFT));
+    if (!(pa >= memory_info.usable_memory_start &&
+          pa < memory_info.usable_memory_end)) {
+        kprintf("not use page fault.");
+        return -3;
+    }
+    if (!pte)
+        return -1;
+    kprintf("PF pa: 0x%lx, reference count: %d.\n", pa,
+            get_page_reference(&memory_info, pa));
+    uint8_t type = pte->fields.Type;
+    if (get_page_reference(&memory_info, pa) == 1) {
+        // just change type
+        type |= PTE_TYPE_BIT_W;
+        pte->fields.Type = type;
+    } else {
+        // do copy
+        char *new_pa = page_alloc(1, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
+        if (!new_pa)
+            return -2;
+        memcpy(new_pa, pa, PG_SIZE);
+        pte->fields.PhyPageNumber = ((uintptr_t)new_pa >> PG_SHIFT);
+        decrease_page_ref(&memory_info, pa);
+        type |= PTE_TYPE_BIT_W;
+        pte->fields.Type = type;
+    }
+    flush_tlb_all();
+    return 0;
+}

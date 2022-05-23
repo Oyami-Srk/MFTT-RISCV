@@ -2,7 +2,6 @@
 // Created by shiroko on 22-4-30.
 //
 
-#include <types.h>
 #include "./utils.h"
 #include <driver/console.h>
 #include <environment.h>
@@ -11,6 +10,7 @@
 #include <riscv.h>
 #include <syscall.h>
 #include <trap.h>
+#include <types.h>
 
 // Used in trap.S
 void __attribute__((used)) user_trap_handler(proc_t *proc) {
@@ -26,14 +26,25 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
     } else if (scause == 8) {
         // do syscall
-        // TODO: maybe a lock here
-        do_syscall(&proc->trapframe);
         // TODO: Check op type
         proc->user_pc += 4;
+        // TODO: maybe a lock here
+        do_syscall(&proc->trapframe);
     } else {
         // cause by exception
-        while (1)
-            ;
+
+        if ((scause == 15 || scause == 13 || scause == 12) &&
+            stval < KERN_BASE) {
+            // page fault.
+            if (do_pagefault((char *)stval,
+                             (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF)
+                                     << PG_SHIFT)) != 0) {
+                kpanic("do page fault failed.\n");
+            }
+        } else {
+            while (1)
+                ;
+        }
     }
     user_trap_return();
 }

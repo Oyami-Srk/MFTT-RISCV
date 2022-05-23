@@ -6,8 +6,14 @@
 #include <lib/string.h>
 #include <memory.h>
 #include <proc.h>
+#include <trap.h>
 
 int do_fork(proc_t *parent) {
+    spinlock_acquire(&parent->lock);
+    if (parent->status & PROC_STATUS_RUNNING) {
+        parent->status &= ~PROC_STATUS_RUNNING;
+        parent->status |= PROC_STATUS_READY;
+    }
     proc_t *child = proc_alloc();
     if (!child)
         return -1;
@@ -38,10 +44,21 @@ int do_fork(proc_t *parent) {
     }
 
     // fork others
-    child->user_pc      = parent->user_pc;
-    child->status       = parent->status;
+    child->user_pc = parent->user_pc;
+    child->status  = parent->status;
+    if (child->status & PROC_STATUS_RUNNING) {
+        child->status &= ~PROC_STATUS_RUNNING;
+        child->status |= PROC_STATUS_READY;
+    }
     child->waiting_chan = parent->waiting_chan;
-    memcpy(&child->trapframe, &parent->trapframe, sizeof(struct trap_context));
+    // memcpy(&child->trapframe, &parent->trapframe, sizeof(struct
+    // trap_context));
+    child->trapframe = parent->trapframe;
 
+    child->trapframe.a0 = 0;
     spinlock_release(&child->lock);
+    spinlock_release(&parent->lock);
+    // parent yield
+    //    yield();
+    return child->pid;
 }

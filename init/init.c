@@ -19,18 +19,29 @@ int main() {
         buf[31] = '\0';
         printf("lseek and read /dev/vda test: %s\n", buf);
     }
+    //    for (int i = 0; i <= 3; i++) {
+    //        printf("ticks: %d.\n", ticks());
+    //        sleep(2);
+    //    }
+    //    printf("Trying to fork. ");
     int ret = fork();
-    if (ret <= 0) {
+    //    printf("Result: %d.\n", ret);
+    if (ret > 0) {
         printf("I am parent, child pid: %d.\n", ret);
         for (;;) {
-            printf("ticks: %d.\n", ticks());
+            printf("Parent says: ticks: %d.\n", ticks());
+            sleep(2);
+        }
+    } else if (ret == 0) {
+        printf("I am child. parent pid: %d.\n", getppid());
+        for (;;) {
+            printf("Child says: ticks: %d.\n", ticks());
             sleep(2);
         }
     } else {
-        printf("I am child. parent pid: %d.\n", getppid());
+        printf("Error code: %d.\n", ret);
         for (;;) {
-            printf("ticks: %d.\n", ticks());
-            sleep(5);
+            sleep(100);
         }
     }
 }

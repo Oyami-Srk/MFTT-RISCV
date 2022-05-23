@@ -158,7 +158,10 @@ static rb_node *rb_search_upper(rb_node *x, uint64_t key) {
 char *kmalloc(size_t size) {
     spinlock_acquire(&kmem_lock);
     size += kmem_block_head_size;
-    size            = ROUNDUP_WITH(16, size);
+    size = ROUNDUP_WITH(16, size);
+    if (size < sizeof(kmem_block)) {
+        size = sizeof(kmem_block);
+    }
     kmem_pool *pool = memory_pool;
     rb_node   *node = NULL;
     spinlock_acquire(&pool->lock);

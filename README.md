@@ -12,3 +12,9 @@ What I've done:
 * Virtual File System
 * General FDT Prober framework
 * General Driver framework
+
+What I need:
+
+* FAT Fs
+* Time managment
+* k210 port

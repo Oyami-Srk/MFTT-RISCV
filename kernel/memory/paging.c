@@ -236,6 +236,10 @@ int do_pagefault(char *caused_va, pde_t pde) {
     kprintf("PF pa: 0x%lx, reference count: %d.\n", pa,
             get_page_reference(&memory_info, pa));
     uint8_t type = pte->fields.Type;
+    if (type & PTE_TYPE_BIT_W) {
+        kprintf("PF invailed.\n");
+        return -4;
+    }
     if (get_page_reference(&memory_info, pa) == 1) {
         // just change type
         type |= PTE_TYPE_BIT_W;

@@ -162,6 +162,37 @@ sysret_t sys_getppid(struct trap_context *trapframe) {
     return 0;
 }
 
+sysret_t sys_mkdirat(struct trap_context *trapframe) {
+    int         fd       = (int)trapframe->a0;
+    const char *filename = ustrcpy_out((char *)(trapframe->a1));
+    if (!filename)
+        return -1;
+    int mode = (int)trapframe->a1;
+
+    file_t **ftables = myproc()->files;
+    if (ftables[fd]) {
+        file_t   *f    = ftables[fd];
+        dentry_t *dent = vfs_mkdir(f->f_dentry, filename, mode);
+        if (!dent)
+            return -2;
+        file_t *df = vfs_open(dent, mode);
+        if (!df)
+            return -3;
+        for (int i = 3; i < MAX_FILE_OPEN; i++) {
+            if (ftables[i] == NULL) {
+                ftables[i] = df;
+                return i;
+            }
+        }
+        vfs_close(df);
+        return -4;
+    } else {
+        return -1;
+    }
+}
+
+sysret_t sys_mount(struct trap_context *trapframe) {}
+
 // Syscall table
 extern sysret_t sys_test(struct trap_context *);
 // clang-format off
@@ -184,9 +215,9 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_getdents64]= NULL,
     [SYS_linkat]= NULL,
     [SYS_unlinkat]= NULL,
-    [SYS_mkdirat]= NULL,
+    [SYS_mkdirat]= sys_mkdirat,
     [SYS_umount2]= NULL,
-    [SYS_mount]= NULL,
+    [SYS_mount]= sys_mount,
     [SYS_fstat]= NULL,
     [SYS_clone]= sys_clone,
     [SYS_execve]= NULL,

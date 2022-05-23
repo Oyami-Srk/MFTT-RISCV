@@ -19,29 +19,16 @@ int main() {
         buf[31] = '\0';
         printf("lseek and read /dev/vda test: %s\n", buf);
     }
-    //    for (int i = 0; i <= 3; i++) {
-    //        printf("ticks: %d.\n", ticks());
-    //        sleep(2);
-    //    }
-    //    printf("Trying to fork. ");
-    int ret = fork();
-    //    printf("Result: %d.\n", ret);
-    if (ret > 0) {
-        printf("I am parent, child pid: %d.\n", ret);
-        for (;;) {
-            printf("Parent says: ticks: %d.\n", ticks());
-            sleep(2);
-        }
-    } else if (ret == 0) {
-        printf("I am child. parent pid: %d.\n", getppid());
-        for (;;) {
-            printf("Child says: ticks: %d.\n", ticks());
-            sleep(2);
-        }
-    } else {
-        printf("Error code: %d.\n", ret);
-        for (;;) {
-            sleep(100);
-        }
+    printf("Mount test.\n");
+    int parent_fd = openat(0, "/", 0, 0);
+    int mnt       = mkdirat(parent_fd, "mnt", 0);
+    if (mnt)
+        mount("/dev/vda", "/mnt", "fat32", 0, NULL);
+    else
+        printf("Cannot create mnt dir");
+    for (int i = 0; i <= 3; i++) {
+        printf("ticks: %d.\n", ticks());
+        sleep(2);
     }
+    return 0;
 }

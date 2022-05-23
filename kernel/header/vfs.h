@@ -14,9 +14,9 @@
  * 可能会导致问题。（FIXME）
  */
 
-#include <types.h>
 #include <lib/linklist.h>
 #include <lib/sys/spinlock.h>
+#include <types.h>
 
 struct vfs_inode;
 struct vfs_dir_entry;
@@ -39,8 +39,8 @@ struct vfs_inode_ops {
     int (*link)(inode_t *inode, inode_t *dir, const char *name);
     int (*unlink)(inode_t *dir, const char *name);
     // 创建/删除目录inode
-    int (*mkdir)(inode_t *parent, const char *name);
-    int (*rmdir)(inode_t *parent, const char *name);
+    int (*mkdir)(inode_t *parent, const char *name, inode_t **dir);
+    int (*rmdir)(inode_t *parent, const char *name, inode_t **dir);
 };
 
 struct vfs_file_ops {
@@ -160,6 +160,8 @@ file_t *vfs_open(dentry_t *dentry, int mode);
 int     vfs_close(file_t *file);
 int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
 int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);
+
+dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode);
 
 // Utils for fs
 #define ADD_FILESYSTEM(fs)                                                     \

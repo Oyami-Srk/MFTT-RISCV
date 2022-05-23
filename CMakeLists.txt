@@ -6,6 +6,8 @@ SET(CMAKE_SYSTEM_NAME Generic)
 SET(CMAKE_SYSTEM_PROCESSOR RV64)
 SET(CMAKE_EXECUTABLE_SUFFIX ".elf")
 
+SET(OS_PLATFORM qemu)
+
 # Find cross compiler for RISCV64
 FIND_PROGRAM(RISCV_C_COMPILER "riscv64-elf-gcc")
 
@@ -122,5 +124,30 @@ ENDIF ()
 
 # End of HD.img
 
+# Generate SBI
+SET(BIN_SBI rustsbi-${OS_PLATFORM}.bin)
+ADD_CUSTOM_COMMAND(OUTPUT ${BIN_SBI}
+        COMMAND cargo make --release
+        COMMAND cp target/riscv64imac-unknown-none-elf/release/rustsbi-qemu.bin ${CMAKE_BINARY_DIR}/${BIN_SBI}
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/SBI/${OS_PLATFORM}/rustsbi-${OS_PLATFORM})
+ADD_CUSTOM_TARGET(generate_${BIN_SBI} ALL DEPENDS ${BIN_SBI})
+# End of generation
 
+# Generate os.bin
+SET(BIN os.bin)
+SET(BIN_KERNEL kernel.bin)
+ADD_CUSTOM_COMMAND(OUTPUT ${BIN}
+        COMMAND ${CMAKE_OBJCOPY} $<TARGET_FILE:kernel.elf> --strip-all -O binary ${CMAKE_BINARY_DIR}/${BIN_KERNEL}
+        COMMAND dd conv=notrunc bs=1 if=${BIN_SBI} of=${BIN}
+        COMMAND dd conv=notrunc bs=1 if=${BIN_KERNEL} of=${BIN} seek=2097152
+        COMMAND cp ${BIN} ..
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
 
+ADD_CUSTOM_TARGET(generate_${BIN} ALL DEPENDS ${BIN})
+
+ADD_CUSTOM_COMMAND(OUTPUT ${BIN}
+        DEPENDS kernel.elf ${BIN_SBI}
+        APPEND
+        )
+# End of generation

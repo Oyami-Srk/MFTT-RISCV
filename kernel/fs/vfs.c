@@ -7,8 +7,10 @@
 #include <memory.h>
 #include <vfs.h>
 
+inode_t root_inode = {.i_ino = 1, .i_size = 0};
+
 dentry_t root_dentry = {
-    .d_inode   = NULL,
+    .d_inode   = &root_inode,
     .d_name    = "/",
     .d_parent  = NULL,
     .d_subdirs = LIST_HEAD_INIT(root_dentry.d_subdirs),
@@ -48,6 +50,53 @@ void init_vfs() {
         list_add(&(*fs)->fs_fslist, &filesystems_list);
     }
     kprintf("\n");
+}
+
+dentry_t *vfs_get_parent_dentry(const char *path, dentry_t *cwd, char *name) {
+    if (cwd == NULL)
+        cwd = &root_dentry;
+    char   fname[32];
+    size_t len = strlen(path);
+
+    int last = 0;
+    for (int i = 0; i <= len; i++) {
+        if (i == len || path[i] == '/') {
+            memcpy(fname, path + last, i - last + 1);
+            fname[i - last] = '\0';
+            kprintf(":%s\n", fname);
+            int  l     = i - last;
+            bool found = false;
+            last       = i + 1;
+            if (l == 0 || (l == 1 && fname[0] == '.')) {
+                continue;
+            } else if (l == 2 && fname[0] == '.' && fname[1] == '.') {
+                if (cwd->d_parent)
+                    cwd = cwd->d_parent;
+                else
+                    cwd = &root_dentry;
+                continue;
+            }
+            list_foreach_entry(&cwd->d_subdirs, dentry_t, d_subdirs_list, dir) {
+                if (strcmp(fname, dir->d_name) == 0) {
+                    cwd   = dir;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                inode_t *dir_inode = cwd->d_inode;
+                if (!dir_inode || !dir_inode->i_op->lookup)
+                    return NULL;
+                dentry_t *r;
+                int       ret = dir_inode->i_op->lookup(dir_inode, fname, &r);
+                if (ret != 0)
+                    return NULL;
+                list_add(&r->d_subdirs_list, &cwd->d_subdirs);
+                cwd = r;
+            }
+        }
+    }
+    return cwd;
 }
 
 dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
@@ -183,4 +232,44 @@ int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
     int r = file->f_op->write(file, buffer, file->f_offset + offset, len);
     file->f_offset += len;
     return r;
+}
+
+dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
+    char dname[32];
+    kprintf("gpd test.\n");
+    char *a[] = {"/", "/dev", "/dev/tty", "/dev/.././/dev///./tty"};
+    for (int i = 0; i < 4; i++) {
+        kprintf("Test %s : ", a[i]);
+        dentry_t *d = vfs_get_parent_dentry(a[i], NULL, dname);
+        if (d)
+            kprintf("parent name: %s, dname: %s.", d->d_name, dname);
+        else
+            kprintf("None");
+        kprintf("\n");
+    }
+    parent          = vfs_get_parent_dentry(path, parent, dname);
+    inode_t *pinode = parent->d_inode;
+    inode_t *dinode = NULL;
+    list_foreach_entry(&parent->d_subdirs, dentry_t, d_subdirs_list, dent) {
+        if (strcmp(dname, dent->d_name) == 0)
+            return NULL; // existed
+    }
+    if (pinode->i_op && pinode->i_op->mkdir) {
+        if (pinode->i_op->mkdir(pinode, dname, &dinode) != 0)
+            return NULL; // failed
+    } else {
+        dinode = vfs_alloc_inode(pinode->i_sb);
+    }
+    if (!dinode)
+        return NULL; // no dinode created.
+    // add to dentries
+    dentry_t *new = (dentry_t *)kmalloc(sizeof(dentry_t));
+    memset(new, 0, sizeof(dentry_t));
+    new->d_subdirs = (list_head_t)LIST_HEAD_INIT(new->d_subdirs);
+    new->d_inode   = dinode;
+    new->d_parent  = parent;
+    new->d_type    = D_TYPE_DIR;
+    strcpy(new->d_name, dname);
+    list_add(&new->d_subdirs_list, &parent->d_subdirs);
+    return new;
 }

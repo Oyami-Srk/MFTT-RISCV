@@ -1,13 +1,15 @@
 //
 // Created by shiroko on 22-5-22.
 //
-#include <types.h>
 #include "./fatfs.h"
+#include <dev/buffered_io.h>
 #include <lib/string.h>
+#include <types.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 static size_t HD_drv_read(uint16_t drv, uint32_t lba, char *buf, size_t bytes) {
+    bio_cache_get(drv, lba);
 }
 
 /* 我之前在OmochaOS上使用的十分简单的FAT32文件系统实现，之后可能会使用FatFs作为实现

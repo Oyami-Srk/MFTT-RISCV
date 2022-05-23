@@ -4,6 +4,8 @@ Original project host on github: https://github.com/Oyami-Srk/MFTT-RISCV
 
 My First Touch To RISCV
 
+*WHAT A PITY THAT OJ HAVE NO SUPPORT FOR CMAKE*
+
 What I've done:
 
 * Boot

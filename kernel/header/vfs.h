@@ -23,12 +23,14 @@ struct vfs_dir_entry;
 struct vfs_file;
 struct vfs_superblock;
 struct vfs_filesystem_t;
+struct vfs_read_dir_context;
 
-typedef struct vfs_inode        inode_t;
-typedef struct vfs_file         file_t;
-typedef struct vfs_superblock   superblock_t;
-typedef struct vfs_dir_entry    dentry_t;
-typedef struct vfs_filesystem_t filesystem_t;
+typedef struct vfs_inode            inode_t;
+typedef struct vfs_file             file_t;
+typedef struct vfs_superblock       superblock_t;
+typedef struct vfs_dir_entry        dentry_t;
+typedef struct vfs_filesystem_t     filesystem_t;
+typedef struct vfs_read_dir_context read_dir_context_t;
 
 // OPs
 
@@ -41,6 +43,8 @@ struct vfs_inode_ops {
     // 创建/删除目录inode
     int (*mkdir)(inode_t *parent, const char *name, inode_t **dir);
     int (*rmdir)(inode_t *parent, const char *name, inode_t **dir);
+    int (*read_dir)(inode_t *parent, read_dir_context_t *buf,
+                    size_t buffer_size);
 };
 
 struct vfs_file_ops {
@@ -140,6 +144,12 @@ struct vfs_file {
     int                   f_mode;
 
     void *f_fs_data;
+};
+
+struct vfs_read_dir_context {
+    inode_t *d_inode;
+    char     d_name[D_NAME_LEN];
+    void    *d_fs_next;
 };
 
 struct vfs_filesystem_t {

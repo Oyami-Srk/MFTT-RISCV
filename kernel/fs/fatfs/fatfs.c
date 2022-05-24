@@ -4,10 +4,14 @@
 
 #include "./fatfs.h"
 
-static filesystem_ops_t fatfs_fs_ops = {};
-static filesystem_t     fatfs        = {
-               .fs_name = "FatFs", .fs_dev = 0, .fs_op = &fatfs_fs_ops};
+extern superblock_t *do_mount_fatfs(superblock_t *sb, inode_t *dev,
+                                    void *flags);
 
-static int inode_idx = 1000;
+static filesystem_ops_t fatfs_fs_ops = {
+    .init_fs = NULL,
+    .mount   = do_mount_fatfs,
+};
+static filesystem_t fatfs = {
+    .fs_name = "fat32", .fs_dev = 0, .fs_op = &fatfs_fs_ops};
 
 ADD_FILESYSTEM(fatfs);

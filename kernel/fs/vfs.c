@@ -259,6 +259,14 @@ dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
 
 dentry_t *vfs_get_root() { return &root_dentry; }
 
+superblock_t *vfs_create_superblock() {
+    superblock_t *sb = (superblock_t *)kmalloc(sizeof(superblock_t));
+    memset(sb, 0, sizeof(superblock_t));
+    return sb;
+}
+
+void vfs_destroy_superblock(superblock_t *sb) { kfree(sb); }
+
 int vfs_mount(const char *dev, const char *mountpoint, const char *fstype,
               void *flags) {
     // search fs

@@ -6,10 +6,14 @@
 #include <lib/string.h>
 #include <types.h>
 
+#define __FAT_FS_DEBUG__ 1
+#include <driver/console.h>
+
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 static size_t HD_drv_read(uint16_t drv, uint32_t lba, char *buf, size_t bytes) {
-    bio_cache_get(drv, lba);
+    bio_cache_read(drv, lba);
+    return bytes;
 }
 
 /* 我之前在OmochaOS上使用的十分简单的FAT32文件系统实现，之后可能会使用FatFs作为实现
@@ -140,13 +144,25 @@ void TrimWhiteSpace(const char *src, char *dst) {
     memcpy(dst, str, end - str + 1);
 }
 
-void ReadBootSector(uint16_t drv, struct FAT32_FileSystem *fs) {
-    //        struct HD_PartInfo part_info;
-    //        HD_info(drv, &part_info);
-    HD_drv_read(drv, 0, hd_buf_1, 512);
+static uint8_t checksum_fname(char *fname) {
+    uint8_t i;
+    uint8_t checksum = 0;
+    for (i = 0; i < 11; i++) {
+        uint8_t highbit = (checksum & 0x1) << 7;
+        checksum        = ((checksum >> 1) & 0x7F) | highbit;
+        checksum        = checksum + fname[i];
+    }
+    return checksum;
+}
+
+static int fat_read_superblock(uint16_t drv, struct FAT32_FileSystem *fs) {
+    buffered_io_t  *buf  = bio_cache_read(drv, 0);
+    char           *pBuf = buf->data;
     struct FAT32_BS BootSector;
     memset(&BootSector, 0, sizeof(struct FAT32_BS));
-    memcpy(&BootSector, hd_buf_1, sizeof(struct FAT32_BS));
+    memcpy(&BootSector, pBuf, sizeof(struct FAT32_BS));
+    pBuf = NULL;
+    bio_cache_release(buf);
     char VolLab[12];
     char OEMName[9];
     char FileSysType[9];
@@ -156,25 +172,25 @@ void ReadBootSector(uint16_t drv, struct FAT32_FileSystem *fs) {
     memcpy(VolLab, BootSector.VolLab, 11);
     memcpy(OEMName, BootSector.OEMName, 8);
     memcpy(FileSysType, BootSector.FileSysType, 8);
-#if __DEBUG__ && __FS_DEBUG__
-    printf("[FS] jmpBoot: 0x%x 0x%x 0x%x, OEMName: %s, BytesPerSec: %d, "
-           "SecPerClus: %d, "
-           "RsvdSecCnt: %d, NumFATs: %d, RootEntCnt: %d, TotSec16: %d, Media: "
-           "%d, FATSz16: %d, SecPerTrk: %d, NumHeads: %d, HiddSec: %d\n",
-           BootSector.jmpBoot[0], BootSector.jmpBoot[1], BootSector.jmpBoot[2],
-           OEMName, BootSector.BytesPerSec, BootSector.SecPerClus,
-           BootSector.RsvdSecCnt, BootSector.NumFATs, BootSector.RootEntCnt,
-           BootSector.TotSec16, BootSector.Media, BootSector.FATSz16,
-           BootSector.SecPerTrk, BootSector.NumHeads, BootSector.HiddSec);
-    printf(
-        "[FS] TotSec32: %d, FATSz32: %d, ExtFlags: 0x%x, FSVer: 0x%x, "
-        "RootClus: "
-        "%d, FSInfo: %d, BkBootSec: %d, DrvNum: %d, BootSig: 0x%x, VolID: %d, "
-        "VolLab: %s\n",
-        BootSector.TotSec32, BootSector.FATSz32, BootSector.ExtFlags,
-        BootSector.FSVer, BootSector.RootClus, BootSector.FSInfo,
-        BootSector.BkBootSec, BootSector.DrvNum, BootSector.BootSig,
-        BootSector.VolID, VolLab);
+#if __FAT_FS_DEBUG__
+    kprintf("[FATFS] jmpBoot: 0x%x 0x%x 0x%x, OEMName: %s, BytesPerSec: %d, "
+            "SecPerClus: %d, "
+            "RsvdSecCnt: %d, NumFATs: %d, RootEntCnt: %d, TotSec16: %d, Media: "
+            "%d, FATSz16: %d, SecPerTrk: %d, NumHeads: %d, HiddSec: %d\n",
+            BootSector.jmpBoot[0], BootSector.jmpBoot[1], BootSector.jmpBoot[2],
+            OEMName, BootSector.BytesPerSec, BootSector.SecPerClus,
+            BootSector.RsvdSecCnt, BootSector.NumFATs, BootSector.RootEntCnt,
+            BootSector.TotSec16, BootSector.Media, BootSector.FATSz16,
+            BootSector.SecPerTrk, BootSector.NumHeads, BootSector.HiddSec);
+    kprintf("[FATFS] TotSec32: %d, FATSz32: %d, ExtFlags: 0x%x, FSVer: 0x%x, "
+            "RootClus: "
+            "%d, FSInfo: %d, BkBootSec: %d, DrvNum: %d, BootSig: 0x%x, VolID: "
+            "0x%x, "
+            "VolLab: %s\n",
+            BootSector.TotSec32, BootSector.FATSz32, BootSector.ExtFlags,
+            BootSector.FSVer, BootSector.RootClus, BootSector.FSInfo,
+            BootSector.BkBootSec, BootSector.DrvNum, BootSector.BootSig,
+            BootSector.VolID, VolLab);
 #endif
     assert(BootSector.BootSig == 0x29, "FAT BootSig invaild.");
     assert(BootSector.TotSec16 == 0, "FAT TotSec16 invalid");
@@ -201,41 +217,19 @@ void ReadBootSector(uint16_t drv, struct FAT32_FileSystem *fs) {
     fs->FirstDataClus =
         BootSector.RsvdSecCnt + BootSector.FATSz32 * BootSector.NumFATs;
     fs->FATstartSct = BootSector.RsvdSecCnt;
-}
 
-static inline uint32_t get_next_clus_in_FAT(struct FAT32_FileSystem *fs,
-                                            uint32_t                 clus) {
-    // 32 bit a fat ent(4 byte)
-    uint32_t sector_of_clus_in_fat = clus / 128;
-    HD_drv_read(fs->drv, fs->FATstartSct + sector_of_clus_in_fat, hd_buf_1,
-                512);
-    uint32_t next_clus =
-        ((uint32_t *)hd_buf_1)[clus - 128 * sector_of_clus_in_fat];
-    return next_clus & 0x0FFFFFFF;
-}
+    uint64_t fsinfo_lba = fs->FSInfo;
+    buf                 = bio_cache_read(drv, fsinfo_lba * fs->BytesPerSec);
+    pBuf                = buf->data;
 
-void ReadFSInfo(struct FAT32_FileSystem *fs) {
-    HD_drv_read(fs->drv, fs->FSInfo, hd_buf_1, 512);
     struct FAT32_FSInfo FSInfo;
-    uint32_t            FSInfo_LeadSig;
-    memcpy(&FSInfo_LeadSig, hd_buf_1, 4);
-    assert(FSInfo_LeadSig == 0x41615252, "FAT LeadSig invalid");
-    memcpy(&FSInfo, hd_buf_1 + 484, sizeof(struct FAT32_FSInfo));
+    assert(*((uint32_t *)pBuf) == 0x41615252, "FAT LeadSig invalid");
+    memcpy(&FSInfo, pBuf + 484, sizeof(struct FAT32_FSInfo));
     assert(FSInfo.StrucSig == 0x61417272, "FAT StructSig invalid");
     assert(FSInfo.TrailSig == 0xAA550000, "FAT Trail invalid");
     fs->FreeClusCount     = FSInfo.FreeCount;
     fs->NextFreeClusCount = FSInfo.NxtFree;
-}
-
-static uint8_t checksum_fname(char *fname) {
-    uint8_t i;
-    uint8_t checksum = 0;
-    for (i = 0; i < 11; i++) {
-        uint8_t highbit = (checksum & 0x1) << 7;
-        checksum        = ((checksum >> 1) & 0x7F) | highbit;
-        checksum        = checksum + fname[i];
-    }
-    return checksum;
+    bio_cache_release(buf);
 }
 
 static inline char char_upper(char c) {
@@ -304,6 +298,17 @@ static void write_8_3_filename(uint8_t *fname, uint8_t *buffer) {
             buffer[j] = char_upper(fname[j]);
         }
     }
+}
+
+static inline uint32_t get_next_clus_in_FAT(struct FAT32_FileSystem *fs,
+                                            uint32_t                 clus) {
+    // 32 bit a fat ent(4 byte)
+    uint32_t sector_of_clus_in_fat = clus / 128;
+    HD_drv_read(fs->drv, fs->FATstartSct + sector_of_clus_in_fat, hd_buf_1,
+                512);
+    uint32_t next_clus =
+        ((uint32_t *)hd_buf_1)[clus - 128 * sector_of_clus_in_fat];
+    return next_clus & 0x0FFFFFFF;
 }
 
 void read_a_clus(struct FAT32_FileSystem *fs, uint32_t clus, void *buf,
@@ -433,4 +438,76 @@ size_t read_file(struct FAT32_FileSystem *fs, struct fs_file_info *fileinfo,
     */
 
     return size;
+}
+
+// =-=-=-=-=-=-=-=-=-=-=-= VFS Impl =-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+#include <lib/rb_tree.h>
+
+static int inode_idx = 1000;
+#define MAX_FAT32_INODES 128
+static inode_t *inodes[MAX_FAT32_INODES];
+
+static rb_tree inode_tree;
+
+static int open(file_t *file) {}
+static int read(file_t *file, char *buffer, size_t offset, size_t len) {}
+static int write(file_t *file, const char *buffer, size_t offset, size_t len) {}
+static int close(file_t *file) {}
+static int flush(file_t *file) {}
+static int seek(file_t *file, size_t offset) {}
+static int mmap(file_t *file, char *addr, size_t offset, size_t len) {}
+static int munmap(file_t *file, char *addr, size_t len) {}
+
+static file_ops_t file_opts = {
+    .write  = write,
+    .read   = read,
+    .open   = open,
+    .seek   = seek,
+    .munmap = munmap,
+    .mmap   = mmap,
+    .flush  = flush,
+    .close  = close,
+};
+
+// 在目录项中寻找名字为name的目录项，并写入found_inode中
+static int lookup(inode_t *inode, const char *name, dentry_t **found_inode) {}
+// 链接/取消链接 一个inode到dir里。
+static int link(inode_t *inode, inode_t *dir, const char *name) {}
+static int unlink(inode_t *dir, const char *name) {}
+// 创建/删除目录inode
+static int mkdir(inode_t *parent, const char *name, inode_t **dir) {}
+static int rmdir(inode_t *parent, const char *name, inode_t **dir) {}
+
+static inode_ops_t inode_ops = {
+    .mkdir  = mkdir,
+    .rmdir  = rmdir,
+    .link   = link,
+    .unlink = unlink,
+    .lookup = lookup,
+};
+
+static inode_t *alloc_inode(superblock_t *sb) {}
+static int      free_inode(superblock_t *sb, inode_t *inode) {}
+
+static int write_inode(superblock_t *sb, inode_t *inode) {}
+
+static int read_inode(superblock_t *sb, inode_t *inode) {}
+
+static superblock_ops_t s_op = {
+    .write_inode = write_inode,
+    .read_inode  = read_inode,
+    .alloc_inode = alloc_inode,
+    .free_inode  = free_inode,
+};
+
+superblock_t *do_mount_fatfs(superblock_t *sb, inode_t *dev, void *flags) {
+    sb->s_op = &s_op;
+    // read superblock
+    struct FAT32_FileSystem *fatfs =
+        (struct FAT32_FileSystem *)kmalloc(sizeof(struct FAT32_FileSystem));
+    fat_read_superblock(dev->i_dev[1], fatfs);
+    sb->s_fs_data = (void *)fatfs;
+    // load root
+    return sb;
 }

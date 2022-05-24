@@ -63,6 +63,12 @@ int main() {
                                buf);
                         close(disk_fd);
                     }
+                    printf("test execve.\n");
+                    const char *argv[] = {"arg1", "pworld", "helloi", "arg4",
+                                          NULL};
+                    const char *env[]  = {"env1", "env2", NULL};
+                    execve("/mnt/prog1", (char *const *)argv,
+                           (char *const *)env);
                 }
             } else
                 printf("Cannot create mnt dir");

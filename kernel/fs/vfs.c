@@ -6,6 +6,7 @@
 #include <lib/string.h>
 #include <memory.h>
 #include <proc.h>
+#include <stddef.h>
 #include <vfs.h>
 
 inode_t root_inode = {.i_ino = 1, .i_size = 0, .i_type = inode_dir};
@@ -230,12 +231,24 @@ int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
     return r;
 }
 
-size_t vfs_lseek(file_t *file, size_t offset, int whence) {
+size_t vfs_lseek(file_t *file, offset_t offset, int whence) {
     if (file->f_dentry->d_type == D_TYPE_DIR && offset == 0) {
         file->f_fs_data = NULL;
         return 0;
     } else {
-        file->f_offset += offset;
+        switch (whence) {
+        case SEEK_SET:
+            file->f_offset = offset;
+            break;
+        case SEEK_CUR:
+            file->f_offset += offset;
+            break;
+        case SEEK_END:
+            file->f_offset = (file->f_inode->i_size + offset);
+            break;
+        default:
+            break;
+        }
         return file->f_offset;
     }
 }

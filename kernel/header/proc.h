@@ -128,7 +128,7 @@ typedef struct __proc_t proc_t;
 void init_proc();
 
 proc_t *proc_alloc();
-void    proc_free(proc_t *proc);
+void    proc_free(proc_t *proc, bool keep);
 proc_t *myproc();
 
 void sleep(void *chan, spinlock_t *lock);

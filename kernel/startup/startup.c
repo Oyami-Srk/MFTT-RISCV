@@ -57,7 +57,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
     // pre-CPU process runner
     while (1) {
         enable_trap();
-        proc_t *proc = scheduler(&env.scheduler_data);
+        proc_t *proc = scheduler(&os_env.scheduler_data);
         if (proc) {
             assert(proc->lock.lock == true, "not holding the lock.");
             //            kprintf("CPU %d got PID %d.\n", cpuid(), proc->pid);
@@ -81,7 +81,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         } else {
             mycpu()->proc = NULL;
             // switch to kernel paging table
-            CSR_Write(satp, env.kernel_satp);
+            CSR_Write(satp, os_env.kernel_satp);
             flush_tlb_all();
             enable_trap();
             asm volatile("wfi");

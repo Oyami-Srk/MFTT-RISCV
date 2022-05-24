@@ -113,8 +113,8 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
 }
 
 void init_paging(void *init_start, void *init_end) {
-    env.kernel_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
-    memset(env.kernel_pagedir, 0, PG_SIZE);
+    os_env.kernel_pagedir = (pde_t)page_alloc(1, PAGE_TYPE_PGTBL);
+    memset(os_env.kernel_pagedir, 0, PG_SIZE);
     size_t init_pg_start = ((uint64_t)init_start) >> 30;
     size_t init_pg_end   = ((uint64_t)init_end) >> 30;
     // in position map
@@ -122,16 +122,16 @@ void init_paging(void *init_start, void *init_end) {
     map_pages(env.kernel_pagedir, init_start, init_start, init_end - init_start,
               PTE_TYPE_RWX, false, true);
 #else
-    pte_st *p               = (pte_st *)&env.kernel_pagedir[2];
+    pte_st *p               = (pte_st *)&os_env.kernel_pagedir[2];
     p->fields.V             = 1;
     p->fields.PhyPageNumber = 0x80000000 >> PG_SHIFT;
     p->fields.Type          = PTE_TYPE_RWX;
     p->fields.G             = 1;
     p->fields.U             = 0;
 #endif
-    uint64_t satp = ((uint64_t)env.kernel_pagedir / PG_SIZE) |
+    uint64_t satp = ((uint64_t)os_env.kernel_pagedir / PG_SIZE) |
                     ((uint64_t)PAGING_MODE_SV39 << 60);
-    env.kernel_satp = satp;
+    os_env.kernel_satp = satp;
     CSR_Write(satp, satp);
     flush_tlb_all();
 }
@@ -145,10 +145,10 @@ int mem_sysmap(void *va, void *pa, size_t size, int type) {
     sysmap->pa   = pa;
     sysmap->type = type;
     sysmap->size = size;
-    if (map_pages(env.kernel_pagedir, va, pa, size, type, false, true) != 0) {
+    if (map_pages(os_env.kernel_pagedir, va, pa, size, type, false, true) != 0) {
         return -1;
     }
-    list_add(&sysmap->list, &env.mem_sysmaps);
+    list_add(&sysmap->list, &os_env.mem_sysmaps);
     return 0;
 }
 
@@ -170,7 +170,7 @@ pde_t alloc_page_dir() {
     p->fields.G             = 1;
     p->fields.U             = 0;
     // Setup sysmap
-    list_foreach_entry(&env.mem_sysmaps, struct mem_sysmap, list, sysmap) {
+    list_foreach_entry(&os_env.mem_sysmaps, struct mem_sysmap, list, sysmap) {
         // TODO: check result.
         map_pages(pgdir, sysmap->va, sysmap->pa, sysmap->size, sysmap->type,
                   false, true);

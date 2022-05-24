@@ -14,12 +14,12 @@ proc_t *scheduler(scheduler_data_t *data) {
     proc_t *ret_proc = NULL;
 #define PROC_RUNNABLE (PROC_STATUS_READY | PROC_STATUS_NORMAL)
     // 锁定进程表
-    spinlock_acquire(&env.proc_lock);
+    spinlock_acquire(&os_env.proc_lock);
     // 锁定调度器数据
     spinlock_acquire(&data->lock);
 
-    for (proc_t *proc = &env.proc[data->last_scheduled_pid + 1];
-         proc < &env.proc[env.proc_count]; proc++) {
+    for (proc_t *proc = &os_env.proc[data->last_scheduled_pid + 1];
+         proc < &os_env.proc[os_env.proc_count]; proc++) {
         spinlock_acquire(&proc->lock);
         if (((proc->status & PROC_RUNNABLE) == PROC_RUNNABLE) &&
             (proc->status & PROC_STATUS_RUNNING) == 0) {
@@ -30,8 +30,8 @@ proc_t *scheduler(scheduler_data_t *data) {
         }
         spinlock_release(&proc->lock);
     }
-    for (proc_t *proc = env.proc; proc <= &env.proc[data->last_scheduled_pid];
-         proc++) {
+    for (proc_t *proc = os_env.proc;
+         proc <= &os_env.proc[data->last_scheduled_pid]; proc++) {
         // next round
         spinlock_acquire(&proc->lock);
         if (((proc->status & PROC_RUNNABLE) == PROC_RUNNABLE) &&
@@ -45,6 +45,6 @@ proc_t *scheduler(scheduler_data_t *data) {
     }
 ret:
     spinlock_release(&data->lock);
-    spinlock_release(&env.proc_lock);
+    spinlock_release(&os_env.proc_lock);
     return ret_proc;
 }

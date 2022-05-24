@@ -5,7 +5,6 @@
 #ifndef __ENVIRONMENT_H__
 #define __ENVIRONMENT_H__
 
-#include <types.h>
 #include <configs.h>
 #include <lib/linklist.h>
 #include <lib/sys/spinlock.h>
@@ -13,6 +12,7 @@
 #include <proc.h>
 #include <riscv.h>
 #include <scheduler.h>
+#include <types.h>
 
 struct __cpu_t {
     // int     cpuid; // This is inside the register tp
@@ -50,9 +50,9 @@ struct __env_t {
 typedef struct __env_t env_t;
 
 // TODO: I hate global value
-extern env_t env; // Inside environment.c
+extern env_t os_env; // Inside environment.c
 
-static inline cpu_t *mycpu() { return &env.cpus[cpuid()]; }
+static inline cpu_t *mycpu() { return &os_env.cpus[cpuid()]; }
 
 void init_env();
 

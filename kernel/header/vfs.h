@@ -184,7 +184,7 @@ file_t *vfs_open(dentry_t *dentry, int mode);
 int     vfs_close(file_t *file);
 int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
 int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);
-size_t  vfs_lseek(file_t *file, size_t offset, int whence);
+size_t  vfs_lseek(file_t *file, offset_t offset, int whence);
 
 dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode);
 int       vfs_read_dir(file_t *parent, read_dir_context_t *context);

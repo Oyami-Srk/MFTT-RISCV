@@ -459,7 +459,7 @@ static int seek(file_t *file, size_t offset) {}
 static int mmap(file_t *file, char *addr, size_t offset, size_t len) {}
 static int munmap(file_t *file, char *addr, size_t len) {}
 
-static file_ops_t file_opts = {
+static file_ops_t file_ops = {
     .write  = write,
     .read   = read,
     .open   = open,
@@ -478,6 +478,7 @@ static int unlink(inode_t *dir, const char *name) {}
 // 创建/删除目录inode
 static int mkdir(inode_t *parent, const char *name, inode_t **dir) {}
 static int rmdir(inode_t *parent, const char *name, inode_t **dir) {}
+int read_dir(inode_t *parent, read_dir_context_t *buf, size_t buffer_size) {}
 
 static inode_ops_t inode_ops = {
     .mkdir  = mkdir,
@@ -487,8 +488,17 @@ static inode_ops_t inode_ops = {
     .lookup = lookup,
 };
 
-static inode_t *alloc_inode(superblock_t *sb) {}
-static int      free_inode(superblock_t *sb, inode_t *inode) {}
+static inode_t *alloc_inode(superblock_t *sb) {
+    inode_t *inode = (inode_t *)kmalloc(sizeof(inode_t));
+    assert(inode, "Out of memory.");
+    memset(inode, 0, sizeof(inode_t));
+    memcpy(inode->i_dev, sb->s_dev, sizeof(uint16_t) * 2);
+    inode->i_sb   = sb;
+    inode->i_op   = &inode_ops;
+    inode->i_ino  = inode_idx++;
+    inode->i_f_op = &file_ops;
+}
+static int free_inode(superblock_t *sb, inode_t *inode) {}
 
 static int write_inode(superblock_t *sb, inode_t *inode) {}
 
@@ -509,5 +519,7 @@ superblock_t *do_mount_fatfs(superblock_t *sb, inode_t *dev, void *flags) {
     fat_read_superblock(dev->i_dev[1], fatfs);
     sb->s_fs_data = (void *)fatfs;
     // load root
+    inode_t *root = alloc_inode(sb);
+    root->i_type  = inode_dir;
     return sb;
 }

@@ -12,7 +12,7 @@ int init_driver() {
     memset(devfs, 0, sizeof(dev_driver_t *) * MAX_DEV_ID);
     // build ordered list.
     // TODO: use level array to avoid search from head everytime
-    list_head_t *head_driver = &env.driver_list_head;
+    list_head_t *head_driver = &os_env.driver_list_head;
 
     section_foreach_entry(DevDrivers, dev_driver_t *, drv) {
         int dlevel = (*drv)->loading_sequence;

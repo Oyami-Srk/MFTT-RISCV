@@ -122,10 +122,10 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
                     cpuid());
             //        spinlock_release(&exception_lock);
             //        SBI_shutdown();
-            kprintf("env: 0x%lx~0x%lx, inside?:%d.\n", &env,
-                    (uintptr_t)(&env) + sizeof(env),
-                    stval < (uintptr_t)(&env) + sizeof(env) &&
-                        stval >= (uintptr_t)(&env));
+            kprintf("env: 0x%lx~0x%lx, inside?:%d.\n", &os_env,
+                    (uintptr_t)(&os_env) + sizeof(os_env),
+                    stval < (uintptr_t)(&os_env) + sizeof(os_env) &&
+                        stval >= (uintptr_t)(&os_env));
             kprintf("0x%lx\n", stval);
             while (1)
                 ;

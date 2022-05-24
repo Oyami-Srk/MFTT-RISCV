@@ -2,9 +2,9 @@
 #include <proc.h>
 
 void timer_tick() {
-    spinlock_acquire(&env.ticks_lock);
-    env.ticks++;
-    spinlock_release(&env.ticks_lock);
+    spinlock_acquire(&os_env.ticks_lock);
+    os_env.ticks++;
+    spinlock_release(&os_env.ticks_lock);
     // wakeup
-    wakeup(&env.ticks);
+    wakeup(&os_env.ticks);
 }

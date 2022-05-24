@@ -20,6 +20,10 @@ typedef unsigned int       uint;
 #define UCHAR_MAX  (0xffU)
 #define CHAR_MAX   (0x7f)
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 /* *
  * Pointers and addresses are 32 bits long.
  * We use pointer types to represent addresses,

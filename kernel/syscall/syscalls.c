@@ -15,25 +15,25 @@
 // SYS_ticks: 返回系统节拍器时间
 sysret_t sys_ticks(struct trap_context *trapframe) {
     uint64_t ret;
-    spinlock_acquire(&env.ticks_lock);
-    ret = env.ticks;
-    spinlock_release(&env.ticks_lock);
+    spinlock_acquire(&os_env.ticks_lock);
+    ret = os_env.ticks;
+    spinlock_release(&os_env.ticks_lock);
     return ret;
 }
 
 sysret_t sys_sleep(struct trap_context *trapframe) {
     uint64_t t     = (uint64_t)trapframe->a0;
     uint64_t ticks = 0;
-    spinlock_acquire(&env.ticks_lock);
-    ticks = env.ticks;
-    while (env.ticks - ticks < t) {
+    spinlock_acquire(&os_env.ticks_lock);
+    ticks = os_env.ticks;
+    while (os_env.ticks - ticks < t) {
         if (myproc()->status & PROC_STATUS_STOP) {
-            spinlock_release(&env.ticks_lock);
+            spinlock_release(&os_env.ticks_lock);
             return -1;
         }
-        sleep(&env.ticks, &env.ticks_lock);
+        sleep(&os_env.ticks, &os_env.ticks_lock);
     }
-    spinlock_release(&env.ticks_lock);
+    spinlock_release(&os_env.ticks_lock);
     return 0;
 }
 
@@ -272,6 +272,8 @@ sysret_t sys_getdents64(struct trap_context *trapframe) {
     return sz_read;
 }
 
+sysret_t sys_execve(struct trap_context *) {}
+
 // Syscall table
 extern sysret_t sys_test(struct trap_context *);
 // clang-format off
@@ -299,7 +301,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_mount]= sys_mount,
     [SYS_fstat]= NULL,
     [SYS_clone]= sys_clone,
-    [SYS_execve]= NULL,
+    [SYS_execve]= sys_execve,
     [SYS_wait4]= NULL,
     [SYS_exit]= NULL,
     [SYS_getppid]= sys_getppid,

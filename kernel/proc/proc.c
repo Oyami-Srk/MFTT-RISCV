@@ -22,7 +22,8 @@ void setup_init_process() {
     extern volatile char _init_code_start[];
     extern volatile char _init_code_end[];
 
-    elf_load_to_process(proc, memory_reader, (void *)_init_code_start);
+    assert(elf_load_to_process(proc, memory_reader, (void *)_init_code_start),
+           "Failed to load init elf executable.");
 
     // setup init user stack
     size_t stack_pages = PG_ROUNDUP(PROC_STACK_SIZE) / PG_SIZE;
@@ -43,14 +44,14 @@ void setup_init_process() {
 }
 
 void init_proc() {
-    spinlock_acquire(&env.proc_lock);
+    spinlock_acquire(&os_env.proc_lock);
     for (uint64_t i = 0; i < MAX_PROC; i++) {
-        spinlock_init(&env.proc[i].lock);
+        spinlock_init(&os_env.proc[i].lock);
     }
     // leave proc 0 alone
-    set_bit(env.proc_bitmap, 0);
-    env.proc_count++;
-    spinlock_release(&env.proc_lock);
+    set_bit(os_env.proc_bitmap, 0);
+    os_env.proc_count++;
+    spinlock_release(&os_env.proc_lock);
     // Setup init process as PID 1
     setup_init_process();
 }
@@ -60,20 +61,20 @@ proc_t *proc_alloc() {
     // proc_t *proc = (proc_t *)kmalloc(sizeof(proc_t));
     // memset(proc, 0, sizeof(proc_t));
     proc_t *proc = NULL;
-    spinlock_acquire(&env.proc_lock);
+    spinlock_acquire(&os_env.proc_lock);
     uint64_t pid = (uint64_t)set_first_unset_bit(
-        env.proc_bitmap,
+        os_env.proc_bitmap,
         (MAX_PROC / BITS_PER_BITSET) + (MAX_PROC % BITS_PER_BITSET ? 1 : 0));
     if (unlikely(pid == 0xFFFFFFFFFFFFFFFF)) {
-        spinlock_release(&env.proc_lock);
+        spinlock_release(&os_env.proc_lock);
         // kfree(proc);
         return NULL;
     }
-    proc = &env.proc[pid];
-    env.proc_count++;
+    proc = &os_env.proc[pid];
+    os_env.proc_count++;
     spinlock_init(&proc->lock);
     spinlock_acquire(&proc->lock);
-    spinlock_release(&env.proc_lock);
+    spinlock_release(&os_env.proc_lock);
     proc->pid          = pid;
     proc->kernel_stack = page_alloc(1, PAGE_TYPE_SYSTEM);
     memset(proc->kernel_stack, 0, PG_SIZE);
@@ -104,13 +105,13 @@ proc_t *proc_alloc() {
     return proc;
 }
 
-void proc_free(proc_t *proc) {
+void proc_free(proc_t *proc, bool keep) {
     // must hold lock
     assert(proc->lock.lock, "Proc free with unlocked.");
     // TODO: free resource. walk pde and decreate reference count
-    spinlock_acquire(&env.proc_lock);
-    clear_bit(env.proc_bitmap, proc->pid);
-    spinlock_release(&env.proc_lock);
+    spinlock_acquire(&os_env.proc_lock);
+    clear_bit(os_env.proc_bitmap, proc->pid);
+    spinlock_release(&os_env.proc_lock);
 }
 
 // Return current CPU process.

@@ -27,8 +27,9 @@ void sleep(void *chan, spinlock_t *lock) {
 }
 
 void wakeup(void *chan) {
-    spinlock_acquire(&env.proc_lock);
-    for (proc_t *proc = env.proc; proc < &env.proc[env.proc_count]; proc++) {
+    spinlock_acquire(&os_env.proc_lock);
+    for (proc_t *proc = os_env.proc; proc < &os_env.proc[os_env.proc_count];
+         proc++) {
         spinlock_acquire(&proc->lock);
         if (proc->status & PROC_STATUS_WAITING && proc->waiting_chan == chan) {
             proc->status &= ~(PROC_STATUS_WAITING);
@@ -37,5 +38,5 @@ void wakeup(void *chan) {
         }
         spinlock_release(&proc->lock);
     }
-    spinlock_release(&env.proc_lock);
+    spinlock_release(&os_env.proc_lock);
 }

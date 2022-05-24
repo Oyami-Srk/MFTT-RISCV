@@ -31,6 +31,9 @@ typedef struct vfs_superblock       superblock_t;
 typedef struct vfs_dir_entry        dentry_t;
 typedef struct vfs_filesystem_t     filesystem_t;
 typedef struct vfs_read_dir_context read_dir_context_t;
+typedef struct vfs_mount            mount_t;
+
+typedef int (*read_dir_callback)(dentry_t *dentry, void *callback_data);
 
 // OPs
 
@@ -43,8 +46,9 @@ struct vfs_inode_ops {
     // 创建/删除目录inode
     int (*mkdir)(inode_t *parent, const char *name, inode_t **dir);
     int (*rmdir)(inode_t *parent, const char *name, inode_t **dir);
-    int (*read_dir)(inode_t *parent, read_dir_context_t *buf,
-                    size_t buffer_size);
+    // 读取目录，调用callback，纠结要不要在read_dir里直接插入，不用这个callback
+    int (*read_dir)(inode_t *dir, read_dir_callback callback,
+                    void *callback_data);
 };
 
 struct vfs_file_ops {
@@ -107,6 +111,11 @@ struct vfs_inode {
     void *i_fs_data;
 };
 
+struct vfs_mount {
+    superblock_t *sb;
+    inode_t      *root;
+};
+
 // DirEntry标识一个目录inode内的每一项，包含文件和子目录。
 #define D_NAME_LEN        16
 #define D_TYPE_FILE       1
@@ -121,6 +130,8 @@ struct vfs_dir_entry {
     inode_t    *d_inode;            // 目录项指向的inode
     list_head_t d_subdirs_list;     // DirEntry中的子目录项链表
     uint8_t     d_type;
+    bool        d_loaded;
+    mount_t    *d_mount;
 
     list_head_t d_subdirs; // -> d_subdirs_list;
 };
@@ -173,8 +184,10 @@ file_t *vfs_open(dentry_t *dentry, int mode);
 int     vfs_close(file_t *file);
 int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
 int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);
+size_t  vfs_lseek(file_t *file, size_t offset, int whence);
 
 dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode);
+int       vfs_read_dir(file_t *parent, read_dir_context_t *context);
 
 dentry_t *vfs_get_root();
 int       vfs_mount(const char *dev, const char *mountpoint, const char *fstype,

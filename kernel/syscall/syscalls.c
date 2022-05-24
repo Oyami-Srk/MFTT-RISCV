@@ -4,6 +4,7 @@
 
 #include <environment.h>
 #include <lib/stdlib.h>
+#include <lib/string.h>
 #include <lib/sys/spinlock.h>
 #include <stddef.h>
 #include <syscall.h>
@@ -37,14 +38,26 @@ sysret_t sys_sleep(struct trap_context *trapframe) {
 }
 
 sysret_t sys_open(struct trap_context *trapframe) {
-    int   fd       = (int)(trapframe->a0 & 0xFFFFFFFF);
-    char *filename = ustrcpy_out((char *)(trapframe->a1));
+    int   parent_fd = (int)(trapframe->a0 & 0xFFFFFFFF);
+    char *filename  = ustrcpy_out((char *)(trapframe->a1));
     if (!filename)
         return -1;
     int flags = (int)(trapframe->a3 & 0xFFFFFFFF);
     int mode  = (int)(trapframe->a4 & 0xFFFFFFFF);
 
-    dentry_t *dentry = vfs_get_dentry(filename, NULL);
+    dentry_t *cwd = NULL;
+    if (parent_fd == AT_FDCWD)
+        cwd = myproc()->cwd;
+    else {
+        file_t **ftable = myproc()->files;
+        if (ftable[parent_fd])
+            cwd = ftable[parent_fd]->f_dentry;
+        else {
+            return -2;
+        }
+    }
+
+    dentry_t *dentry = vfs_get_dentry(filename, cwd);
     kfree(filename);
     if (!dentry)
         return -1;
@@ -129,9 +142,7 @@ sysret_t sys_lseek(struct trap_context *trapframe) {
     file_t **ftables = myproc()->files;
     if (ftables[fd]) {
         file_t *f = ftables[fd];
-        // TODO: check whence
-        f->f_offset += offset;
-        return (sysret_t)f->f_offset;
+        return (sysret_t)vfs_lseek(f, offset, whence);
     } else {
         return -1;
     }
@@ -166,28 +177,26 @@ sysret_t sys_mkdirat(struct trap_context *trapframe) {
         return -1;
     int mode = (int)trapframe->a1;
 
-    file_t **ftables = myproc()->files;
-    if (ftables[fd]) {
-        file_t   *f    = ftables[fd];
-        dentry_t *dent = vfs_mkdir(f->f_dentry, filename, mode);
-        kfree(filename);
-        if (!dent)
-            return -2;
-        file_t *df = vfs_open(dent, mode);
-        if (!df)
-            return -3;
-        for (int i = 3; i < MAX_FILE_OPEN; i++) {
-            if (ftables[i] == NULL) {
-                ftables[i] = df;
-                return i;
-            }
-        }
-        vfs_close(df);
-        return -4;
+    file_t  **ftables = myproc()->files;
+    dentry_t *d       = NULL;
+    if (fd == AT_FDCWD) {
+        d = myproc()->cwd;
+    } else if (ftables[fd]) {
+        d = ftables[fd]->f_dentry;
     } else {
         kfree(filename);
         return -1;
     }
+    if (!d) {
+        kfree(filename);
+        return -2;
+    }
+
+    dentry_t *dent = vfs_mkdir(d, filename, mode);
+    kfree(filename);
+    if (!dent)
+        return -2;
+    return 0;
 }
 
 sysret_t sys_mount(struct trap_context *trapframe) {
@@ -201,6 +210,66 @@ sysret_t sys_mount(struct trap_context *trapframe) {
     kfree(mountpoint);
     kfree(dev);
     return r;
+}
+
+sysret_t sys_getdents64(struct trap_context *trapframe) {
+    int       fd     = (int)trapframe->a0;
+    dirent_t *dirent = (dirent_t *)trapframe->a1;
+    size_t    len    = (size_t)trapframe->a2;
+
+    // get file
+    file_t *f = NULL;
+    if (fd == AT_FDCWD) {
+        return 0; // AT_FDCWD not supported here
+    } else {
+        f = myproc()->files[fd];
+        if (!f)
+            return 0; // can't read
+    }
+    if (f->f_dentry->d_type != D_TYPE_DIR &&
+        f->f_dentry->d_type != D_TYPE_MOUNTED)
+        return 0; // no dir
+    // start read dir
+    char *kbuf = kmalloc(len);
+    assert(kbuf, "Out of memory when getdents.");
+    char              *end_kbuf = kbuf + len;
+    read_dir_context_t ctx;
+    char              *p = kbuf;
+
+    for (; (char *)p < end_kbuf;) {
+        void *prev_fs_data = f->f_fs_data;
+        if (vfs_read_dir(f, &ctx) < 0)
+            break; // no more ent
+        size_t namelen = strlen(ctx.d_name);
+        if (p + sizeof(dirent_t) + namelen >= end_kbuf) {
+            f->f_fs_data = prev_fs_data;
+            break; // no more space
+        }
+        dirent_t *d = (dirent_t *)p;
+        d->d_ino    = ctx.d_inode->i_ino;
+        d->d_reclen = 0;
+        d->d_off    = 0;
+        switch (ctx.d_inode->i_type) {
+        case inode_dev:
+            d->d_type = 'S';
+            break;
+        case inode_dir:
+            d->d_type = 'D';
+            break;
+        case inode_file:
+            d->d_type = 'F';
+            break;
+        default:
+            d->d_type = 'U';
+            break;
+        }
+        strcpy(d->d_name, ctx.d_name);
+        p += sizeof(dirent_t) + namelen;
+    }
+    size_t sz_read = p - kbuf;
+    umemcpy(dirent, kbuf, sz_read);
+    kfree(kbuf);
+    return sz_read;
 }
 
 // Syscall table
@@ -222,7 +291,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_dup]= NULL,
     [SYS_dup3]= NULL,
     [SYS_chdir]= NULL,
-    [SYS_getdents64]= NULL,
+    [SYS_getdents64]= sys_getdents64,
     [SYS_linkat]= NULL,
     [SYS_unlinkat]= NULL,
     [SYS_mkdirat]= sys_mkdirat,

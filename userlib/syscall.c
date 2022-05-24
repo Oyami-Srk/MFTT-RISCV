@@ -78,7 +78,7 @@ int    pipe2(int fd[2]) { return SYSCALL(SYS_pipe2, fd); }
 int    dup(int fd) { return SYSCALL(SYS_dup, fd); }
 int    dup3(int old, int new) { return SYSCALL(SYS_dup3, old, new); }
 int    chdir(const char *path) { return SYSCALL(SYS_chdir, path); }
-size_t getdents64(int fd, struct dirent *buf, size_t len) {
+size_t getdents64(int fd, dirent_t *buf, size_t len) {
     return SYSCALL(SYS_getdents64, fd, buf, len);
 }
 int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath,
@@ -98,7 +98,7 @@ int mount(const char *dev, const char *dir, const char *fstype, uint64_t flags,
           const void *data) {
     return SYSCALL(SYS_mount, dev, dir, fstype, flags, data);
 }
-int fstat(int fd, struct kstat *kst) { return SYSCALL(SYS_fstat, fd, kst); }
+int fstat(int fd, kstat_t *kst) { return SYSCALL(SYS_fstat, fd, kst); }
 int fork() { return SYSCALL(SYS_clone, SIGCHLD, 0); }
 int clone(int flags, char *stack, int ptid, int tls, int ctid) {
     return SYSCALL(SYS_clone, flags, stack, ptid, tls, ctid);

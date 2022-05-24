@@ -2,9 +2,13 @@
 // Created by shiroko on 22-5-6.
 //
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <syscall.h>
+
+#define STAT_MAX_NAME 32
 
 int main() {
     syscall_test(0, 0);
@@ -19,13 +23,38 @@ int main() {
         buf[31] = '\0';
         printf("lseek and read /dev/vda test: %s\n", buf);
     }
+
+    char      buffer[64];
+    dirent_t *dent = (dirent_t *)buffer;
+    /*
+    int       cwdfd = openat(AT_FDCWD, ".", 0, 0);
+    printf("test ls.\n");
+    while (getdents64(cwdfd, dent, 32) != 0) {
+        printf("%c: %s\n", dent->d_type, dent->d_name);
+    }*/
+
     printf("Mount test.\n");
-    int parent_fd = openat(0, "/", 0, 0);
-    int mnt       = mkdirat(parent_fd, "mnt", 0);
-    if (mnt)
-        mount("/dev/vda", "/mnt", "fat32", 0, NULL);
-    else
-        printf("Cannot create mnt dir");
+    int parent_fd = openat(AT_FDCWD, "/", 0, 0);
+    if (parent_fd < 0) {
+        printf("Failed open root.\n");
+    } else {
+        if (mkdirat(parent_fd, "mnt", 0) != 0) {
+            printf("Failed to mkdir /mnt.\n");
+        } else {
+            int mnt = openat(AT_FDCWD, "/mnt", 0, 0);
+            if (mnt) {
+                if (mount("/dev/vda", "/mnt", "fat32", 0, NULL) != 0)
+                    printf("Cannot mount /dev/vda to /mnt.\n");
+                else {
+                    printf("test ls /mnt.\n");
+                    while (getdents64(mnt, dent, 64) != 0) {
+                        printf("%c: %s\n", dent->d_type, dent->d_name);
+                    }
+                }
+            } else
+                printf("Cannot create mnt dir");
+        }
+    }
     for (int i = 0; i <= 3; i++) {
         printf("ticks: %d.\n", ticks());
         sleep(2);

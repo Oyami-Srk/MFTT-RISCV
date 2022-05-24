@@ -388,8 +388,62 @@ typedef struct {
     rb_node  rb_node;
 } fatfs_inode_index_t;
 
-static int open(file_t *file) {}
-static int read(file_t *file, char *buffer, size_t offset, size_t len) {}
+static int open(file_t *file) { return 0; }
+static int read(file_t *file, char *buffer, size_t offset, size_t len) {
+    fatfs_inode_data_t *fidata = (fatfs_inode_data_t *)file->f_inode->i_fs_data;
+    uint32_t            clus   = fidata->start_clus;
+    struct FAT32_FileSystem *fs = file->f_inode->i_sb->s_fs_data;
+
+    if (offset + len > file->f_inode->i_size)
+        len = file->f_inode->i_size - offset;
+    uint32_t BytesPerClus = 512 * fs->SecPerClus;
+
+    for (uint32_t p = BytesPerClus; p <= offset; p += BytesPerClus) {
+        clus = get_next_clus_in_FAT(fs, clus); // walk to offset's clus
+    }
+
+    uint32_t p_clus = offset % BytesPerClus;
+    size_t   r_size = len;
+
+    if (p_clus % 512) {
+        size_t         s = MIN(512 - (p_clus % 512), r_size);
+        buffered_io_t *buf =
+            bio_cache_read(fs->drv, CLUS2SECTOR(fs, clus) * fs->BytesPerSec);
+        memcpy(buffer, buf->data + (p_clus % 512), s);
+        buffer += s; // buf is sector aligned now
+        p_clus += s;
+        r_size -= s;
+        bio_cache_release(buf);
+    }
+    if (r_size == 0)
+        return len;
+    if (p_clus == BytesPerClus) {
+        clus   = get_next_clus_in_FAT(fs, clus);
+        p_clus = 0;
+    } else if (p_clus > BytesPerClus) {
+        kpanic("Error of p_clus' value!");
+    }
+    for (; r_size > 512;) {
+        buffered_io_t *buf = bio_cache_read(
+            fs->drv, (CLUS2SECTOR(fs, clus) + p_clus / 512) * fs->BytesPerSec);
+        memcpy(buffer, buf->data, BUFFER_SIZE);
+        bio_cache_release(buf);
+        r_size -= 512;
+        p_clus += 512;
+        buf += 512;
+        if (p_clus >= BytesPerClus) {
+            clus   = get_next_clus_in_FAT(fs, clus);
+            p_clus = 0;
+        }
+    }
+    if (r_size) {
+        buffered_io_t *buf = bio_cache_read(
+            fs->drv, (CLUS2SECTOR(fs, clus) + p_clus / 512) * fs->BytesPerSec);
+        memcpy(buffer, buf->data, r_size);
+        bio_cache_release(buf);
+    }
+    return len;
+}
 static int write(file_t *file, const char *buffer, size_t offset, size_t len) {}
 static int close(file_t *file) {}
 static int flush(file_t *file) {}
@@ -398,9 +452,9 @@ static int mmap(file_t *file, char *addr, size_t offset, size_t len) {}
 static int munmap(file_t *file, char *addr, size_t len) {}
 
 static file_ops_t file_ops = {
-    .write  = write,
-    .read   = read,
-    .open   = open,
+    .write = write,
+    .read  = read,
+    // .open   = open,
     .seek   = seek,
     .munmap = munmap,
     .mmap   = mmap,

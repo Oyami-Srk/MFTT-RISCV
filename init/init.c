@@ -50,6 +50,19 @@ int main() {
                     while (getdents64(mnt, dent, 64) != 0) {
                         printf("%c: %s\n", dent->d_type, dent->d_name);
                     }
+                    printf("test open file.\n");
+                    int disk_fd = openat(mnt, "HELLO.TXT", 0, 0);
+                    if (disk_fd < 0)
+                        printf("Open HELLO.TXT failed.\n");
+                    else {
+                        printf("Open HELLO.TXT successful.\n");
+                        char buf[32];
+                        int  bytes = read(disk_fd, buf, 0x20);
+                        buf[31]    = '\0';
+                        printf("Read %d bytes from HELLO.TXT: %s\n", bytes,
+                               buf);
+                        close(disk_fd);
+                    }
                 }
             } else
                 printf("Cannot create mnt dir");

@@ -1,9 +1,9 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <syscall.h>
 
 int main() {
-    int fd = openat(0, "/dev/tty", 0, 0);
-    write(fd, "Hello My First Program execve from disk!\n", 12);
+    printf("Hello My First Program execve from disk!\n");
     for (;;) {
         sleep(100000);
     }

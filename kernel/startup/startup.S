@@ -5,9 +5,9 @@
 
 _start:
     add t0, a0, 1    /* a0 = mhartid, set by SBI */
-    slli t0, t0, 15  /* t0 = t0 << 13; */
+    slli t0, t0, 16  /* t0 = t0 << 16; */
     la sp, boot_sp
-    add sp, sp, t0   /* Each CPU core got 32KB Boot stack */
+    add sp, sp, t0   /* Each CPU core got 64KB Boot stack */
 
     call kernel_main /* Direct jump into kernel
 .1:
@@ -17,6 +17,6 @@ _start:
 .section .bss.stack
 .global boot_stack
 boot_stack:
-    .space 1024 * 32 * 2 /* 16KB setup kernel stack For ecah core*/
+    .space 1024 * 64 * 2 /* 64KB setup kernel stack For ecah core*/
 .global boot_sp
 boot_sp:

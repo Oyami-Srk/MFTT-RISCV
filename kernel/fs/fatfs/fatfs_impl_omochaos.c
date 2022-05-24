@@ -19,8 +19,6 @@ static size_t HD_drv_read(uint16_t drv, uint32_t lba, char *buf, size_t bytes) {
 /* 我之前在OmochaOS上使用的十分简单的FAT32文件系统实现，之后可能会使用FatFs作为实现
  * 只有读取没有写入
  */
-static char hd_buf_1[512];
-
 struct fs_file_info {
     char     filename[8 + 3 + 1];
     size_t   size; // in byte
@@ -60,8 +58,8 @@ struct FAT32_BS {
 
 union FAT32_DirEnt {
     struct {
-        uint8_t  Name[8];
-        uint8_t  Ext[3];
+        char     Name[8];
+        char     Ext[3];
         uint8_t  Attr;
         uint8_t  NTRes;
         uint8_t  CrtTimeTenth;
@@ -129,20 +127,6 @@ struct FAT32_FileSystem {
 
 #define CLUS2SECTOR(fs, N)                                                     \
     (((fs)->FirstDataClus) + ((N - (fs)->RootClus) * (fs)->SecPerClus))
-
-// TrimWhiteSpace assume that len(dst) >= len(src)
-void TrimWhiteSpace(const char *src, char *dst) {
-    char *end;
-    char *str = (char *)src;
-    while ((uint8_t)(*(str)) == ' ')
-        str++;
-    if (*str == 0)
-        return;
-    end = str + strlen(str) - 1;
-    while (end > str && ((uint8_t)(*(end)) == ' '))
-        end--;
-    memcpy(dst, str, end - str + 1);
-}
 
 static uint8_t checksum_fname(char *fname) {
     uint8_t i;
@@ -238,21 +222,26 @@ static inline char char_upper(char c) {
 
 // read_8_3_filename assume that thr length of buffer is >= 12
 // turn 8.3fn into normal one
-static void read_8_3_filename(uint8_t *fname, uint8_t *buffer) {
-    char ext[3];
-    char name[8];
-    memcpy(ext, fname + 8, 3);
-    memcpy(name, fname, 8);
-    memset(buffer, 0, 12);
-    TrimWhiteSpace(name, (char *)buffer);
-    if (ext[0] == ' ')
+static void read_8_3_filename(char *fname, char *buffer) {
+    memcpy(buffer, fname, 8);
+    char *p = buffer + 7;
+    while (p >= buffer && *p == ' ')
+        p--;
+    p++;
+    if (*(fname + 8) == ' ') {
+        *p = '\0';
         return;
-    memset(buffer + strlen((const char *)buffer), '.', 1);
-    memcpy(buffer + strlen((const char *)buffer), ext, 3);
+    }
+    *p = '.';
+    memcpy(++p, fname + 8, 3);
+    *(p + 3) = '\0';
+    p += 2;
+    while (*p == ' ')
+        *(p--) = '\0';
 }
 
 // turn normal fn into 8.3 one
-static void write_8_3_filename(uint8_t *fname, uint8_t *buffer) {
+static void write_8_3_filename(char *fname, char *buffer) {
     memset(buffer, ' ', 11);
     uint32_t namelen = strlen((const char *)fname);
     // find the extension
@@ -304,10 +293,14 @@ static inline uint32_t get_next_clus_in_FAT(struct FAT32_FileSystem *fs,
                                             uint32_t                 clus) {
     // 32 bit a fat ent(4 byte)
     uint32_t sector_of_clus_in_fat = clus / 128;
-    HD_drv_read(fs->drv, fs->FATstartSct + sector_of_clus_in_fat, hd_buf_1,
-                512);
-    uint32_t next_clus =
-        ((uint32_t *)hd_buf_1)[clus - 128 * sector_of_clus_in_fat];
+
+    buffered_io_t *buf = bio_cache_read(
+        fs->drv, (fs->FATstartSct + sector_of_clus_in_fat) * fs->BytesPerSec);
+    char    *pBuf      = buf->data;
+    uint32_t next_clus = ((uint32_t *)pBuf)[clus - 128 * sector_of_clus_in_fat];
+    if (buf->reference == 1)
+        bio_cache_pin(buf);
+    bio_cache_release(buf);
     return next_clus & 0x0FFFFFFF;
 }
 
@@ -318,70 +311,6 @@ void read_a_clus(struct FAT32_FileSystem *fs, uint32_t clus, void *buf,
     }
     HD_drv_read(fs->drv, CLUS2SECTOR(fs, clus), buf,
                 fs->BytesPerSec * fs->SecPerClus);
-}
-
-int get_file_info(uint32_t dir_clus, struct FAT32_FileSystem *fs,
-                  const char *fn, struct fs_file_info *fileinfo) {
-    size_t fn_size = strlen(fn);
-    if (fn[fn_size - 1] == '/')
-        return 2; // not a file
-    uint8_t  name_83[12] = {[0 ... 11] = 0};
-    uint8_t  name[12]    = {[0 ... 11] = 0};
-    uint8_t  dname[12]   = {[0 ... 11] = 0};
-    uint32_t p           = 1;
-    bool     is_file     = false;
-    for (; p < 12; p++) {
-        if (fn[p] == '/')
-            break;
-        if (fn[p] == 0) {
-            is_file = TRUE;
-            break;
-        }
-    }
-    memcpy(name, fn + 1, p - 1);
-    write_8_3_filename(name, name_83);
-    for (;;) {
-        for (uint32_t i = 0; i < fs->SecPerClus; i++) {
-            HD_drv_read(fs->drv, CLUS2SECTOR(fs, dir_clus) + i, hd_buf_1, 512);
-            union FAT32_DirEnt DirEnt;
-            for (uint32_t offset = 0; offset < 512;
-                 offset += sizeof(union FAT32_DirEnt)) {
-                memcpy(&DirEnt, hd_buf_1 + offset, sizeof(union FAT32_DirEnt));
-                if (DirEnt.Name[0] == 0)
-                    break;
-                if (DirEnt.Name[0] == 0xE5 || DirEnt.Name[0] == 0x05)
-                    continue;
-                if (DirEnt.Attr == FS_ATTR_LONGNAME)
-                    continue;
-                if (DirEnt.Name[0] == 0x2E)
-                    continue;
-                memcpy(dname, DirEnt.Name, 11);
-                if (strcmp((const char *)name_83, (const char *)dname) == 0) {
-                    if ((DirEnt.Attr & ATTR_DIR) && is_file == FALSE)
-                        return get_file_info(DirEnt.FstClusHI << 16 |
-                                                 DirEnt.FstClusLO,
-                                             fs, fn + p, fileinfo);
-                    if ((DirEnt.Attr & ATTR_DIR) && is_file == TRUE)
-                        return 3; // require not match type
-                    if ((!(DirEnt.Attr & ATTR_DIR)) && is_file == FALSE)
-                        return 3;
-                    if ((!(DirEnt.Attr & ATTR_DIR)) && is_file == TRUE) {
-                        // found it
-                        memcpy(fileinfo->filename, name,
-                               strlen((const char *)name));
-                        fileinfo->size = DirEnt.FileSize;
-                        fileinfo->clus =
-                            DirEnt.FstClusHI << 16 | DirEnt.FstClusLO;
-                        return 0; // found
-                    }
-                }
-            }
-        }
-        dir_clus = get_next_clus_in_FAT(fs, dir_clus);
-        if (dir_clus >= 0xFFFFFF8 && dir_clus <= 0xFFFFFFF)
-            break;
-    }
-    return 1; // not found
 }
 
 // return actually read size
@@ -399,8 +328,8 @@ size_t read_file(struct FAT32_FileSystem *fs, struct fs_file_info *fileinfo,
     size_t   r_size = size;
     if (p_clus % 512) {
         size_t s = MIN(512 - (p_clus % 512), r_size);
-        HD_drv_read(fs->drv, CLUS2SECTOR(fs, clus), hd_buf_1, 512);
-        memcpy(buf, hd_buf_1 + (p_clus % 512), s);
+        //        HD_drv_read(fs->drv, CLUS2SECTOR(fs, clus), hd_buf_1, 512);
+        //        memcpy(buf, hd_buf_1 + (p_clus % 512), s);
         buf += s; // buf is sector aligned now
         p_clus += s;
         r_size -= s;
@@ -445,10 +374,19 @@ size_t read_file(struct FAT32_FileSystem *fs, struct fs_file_info *fileinfo,
 #include <lib/rb_tree.h>
 
 static int inode_idx = 1000;
-#define MAX_FAT32_INODES 128
-static inode_t *inodes[MAX_FAT32_INODES];
 
-static rb_tree inode_tree;
+static rb_tree inode_tree = {.root = NULL};
+
+static inode_t *alloc_inode(superblock_t *sb);
+
+typedef struct {
+    uint32_t start_clus;
+} fatfs_inode_data_t;
+
+typedef struct {
+    inode_t *inode;
+    rb_node  rb_node;
+} fatfs_inode_index_t;
 
 static int open(file_t *file) {}
 static int read(file_t *file, char *buffer, size_t offset, size_t len) {}
@@ -478,14 +416,75 @@ static int unlink(inode_t *dir, const char *name) {}
 // 创建/删除目录inode
 static int mkdir(inode_t *parent, const char *name, inode_t **dir) {}
 static int rmdir(inode_t *parent, const char *name, inode_t **dir) {}
-int read_dir(inode_t *parent, read_dir_context_t *buf, size_t buffer_size) {}
+static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
+    assert(dir->i_type == inode_dir, "Must be dir.");
+    struct FAT32_FileSystem *fs = dir->i_sb->s_fs_data;
+    uint32_t dir_clus = ((fatfs_inode_data_t *)dir->i_fs_data)->start_clus;
+
+    for (;;) {
+        for (uint32_t i = 0; i < fs->SecPerClus; i++) {
+            buffered_io_t *buf = bio_cache_read(
+                fs->drv, (CLUS2SECTOR(fs, dir_clus) + i) * fs->BytesPerSec);
+            char *pBuf = buf->data;
+
+            union FAT32_DirEnt DirEnt;
+            for (uint32_t offset = 0; offset < 512;
+                 offset += sizeof(union FAT32_DirEnt)) {
+                memcpy(&DirEnt, pBuf + offset, sizeof(union FAT32_DirEnt));
+                if (DirEnt.Name[0] == 0)
+                    break;
+                if (DirEnt.Name[0] == 0xE5 || DirEnt.Name[0] == 0x05) {
+                    continue;
+                }
+                if (DirEnt.Name[0] == 0x2E) {
+                    continue;
+                }
+                if (DirEnt.Attr == FS_ATTR_LONGNAME)
+                    continue; // TODO: support long name
+                if (DirEnt.Attr & ATTR_VOLUME_ID)
+                    continue; // TODO: read it
+                char dname[12] = {[0 ... 11] = 0};
+                read_8_3_filename(DirEnt.Name, dname);
+                inode_t *inode = alloc_inode(dir->i_sb);
+                ((fatfs_inode_data_t *)inode->i_fs_data)->start_clus =
+                    DirEnt.FstClusHI << 16 | DirEnt.FstClusLO;
+                inode->i_size   = DirEnt.FileSize;
+                inode->i_nlinks = 1;
+
+                dentry_t *dentry = (dentry_t *)kmalloc(sizeof(dentry_t));
+                memset(dentry, 0, sizeof(dentry_t));
+                dentry->d_subdirs =
+                    (list_head_t)LIST_HEAD_INIT(dentry->d_subdirs);
+                dentry->d_inode = inode;
+                strcpy(dentry->d_name, dname);
+
+                if (DirEnt.Attr & ATTR_DIR) {
+                    // ent is a dir
+                    inode->i_type  = inode_dir;
+                    dentry->d_type = D_TYPE_DIR;
+                } else {
+                    // ent is a file
+                    inode->i_type  = inode_file;
+                    dentry->d_type = D_TYPE_FILE;
+                }
+                // call callback
+                callback(dentry, data);
+            }
+        }
+        dir_clus = get_next_clus_in_FAT(fs, dir_clus);
+        if (dir_clus >= 0xFFFFFF8 && dir_clus <= 0xFFFFFFF)
+            break;
+    }
+    return 0;
+}
 
 static inode_ops_t inode_ops = {
-    .mkdir  = mkdir,
-    .rmdir  = rmdir,
-    .link   = link,
-    .unlink = unlink,
-    .lookup = lookup,
+    .mkdir    = mkdir,
+    .rmdir    = rmdir,
+    .link     = link,
+    .unlink   = unlink,
+    .lookup   = lookup,
+    .read_dir = read_dir,
 };
 
 static inode_t *alloc_inode(superblock_t *sb) {
@@ -495,9 +494,25 @@ static inode_t *alloc_inode(superblock_t *sb) {
     memcpy(inode->i_dev, sb->s_dev, sizeof(uint16_t) * 2);
     inode->i_sb   = sb;
     inode->i_op   = &inode_ops;
-    inode->i_ino  = inode_idx++;
+    inode->i_ino  = inode_idx;
     inode->i_f_op = &file_ops;
+
+    fatfs_inode_data_t *i_data =
+        (fatfs_inode_data_t *)kmalloc(sizeof(fatfs_inode_data_t));
+    memset(i_data, 0, sizeof(fatfs_inode_data_t));
+    inode->i_fs_data = (void *)i_data;
+
+    fatfs_inode_index_t *i_index =
+        (fatfs_inode_index_t *)kmalloc(sizeof(fatfs_inode_index_t));
+    memset(i_index, 0, sizeof(fatfs_inode_index_t));
+    i_index->inode       = inode;
+    i_index->rb_node.key = inode_idx;
+    rb_insert(&inode_tree, &i_index->rb_node); // no collsion possible
+    inode_idx++;
+
+    return inode;
 }
+
 static int free_inode(superblock_t *sb, inode_t *inode) {}
 
 static int write_inode(superblock_t *sb, inode_t *inode) {}
@@ -521,5 +536,9 @@ superblock_t *do_mount_fatfs(superblock_t *sb, inode_t *dev, void *flags) {
     // load root
     inode_t *root = alloc_inode(sb);
     root->i_type  = inode_dir;
+
+    ((fatfs_inode_data_t *)(root->i_fs_data))->start_clus = fatfs->RootClus;
+
+    sb->s_root = root;
     return sb;
 }

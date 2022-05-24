@@ -7,36 +7,6 @@
 
 #include <types.h>
 
-struct dirent {
-    uint64_t       d_ino;    // 索引结点号
-    uint64_t       d_off;    // 到下一个dirent的偏移
-    unsigned short d_reclen; // 当前dirent的长度
-    unsigned char  d_type;   // 文件类型
-    char           d_name[]; // 文件名
-};
-
-struct kstat {
-    uint16_t      st_dev;
-    uint32_t      st_ino;
-    int           st_mode;
-    int           st_nlink;
-    int           st_uid;
-    int           st_gid;
-    uint16_t      st_rdev;
-    unsigned long __pad;
-    size_t        st_size;
-    size_t        st_blksize;
-    int           __pad2;
-    size_t        st_blocks;
-    long          st_atime_sec;
-    long          st_atime_nsec;
-    long          st_mtime_sec;
-    long          st_mtime_nsec;
-    long          st_ctime_sec;
-    long          st_ctime_nsec;
-    unsigned      __unused[2];
-};
-
 struct tms {
     uint64_t tms_utime;  /* user time */
     uint64_t tms_stime;  /* system time */

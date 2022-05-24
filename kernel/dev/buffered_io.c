@@ -104,6 +104,9 @@ void bio_cache_release(buffered_io_t *buf) {
     spinlock_release(&bio_cache.lock);
 }
 
+void bio_cache_pin(buffered_io_t *buf) { buf->reference++; }
+void bio_cache_unpin(buffered_io_t *buf) { buf->reference--; }
+
 // vfs pack for bio, fs not using this.
 static int bio_read(file_t *file, char *buffer, size_t offset, size_t len) {
     int    dev                = file->f_inode->i_dev[1];

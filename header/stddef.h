@@ -105,6 +105,9 @@ struct linux_dirent64 {
     char           d_name[];
 };
 
+typedef struct linux_dirent64 dirent_t;
+typedef struct __kstat        kstat_t;
+
 // for mmap
 #define PROT_NONE      0
 #define PROT_READ      1

@@ -32,5 +32,7 @@ buffered_io_t *bio_cache_read(uint16_t dev, size_t addr);
 void bio_cache_flush(buffered_io_t *buf);
 // release buffer, no flush here
 void bio_cache_release(buffered_io_t *buf);
+void bio_cache_pin(buffered_io_t *buf);
+void bio_cache_unpin(buffered_io_t *buf);
 
 #endif // __DEV_BUFFERED_IO_H__

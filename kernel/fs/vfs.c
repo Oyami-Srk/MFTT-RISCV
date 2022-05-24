@@ -8,27 +8,32 @@
 #include <proc.h>
 #include <vfs.h>
 
-inode_t root_inode = {.i_ino = 1, .i_size = 0};
+inode_t root_inode = {.i_ino = 1, .i_size = 0, .i_type = inode_dir};
+inode_t dev_inode  = {.i_ino = 2, .i_size = 0, .i_type = inode_dir};
+inode_t sys_inode  = {.i_ino = 3, .i_size = 0, .i_type = inode_dir};
 
 dentry_t root_dentry = {
     .d_inode   = &root_inode,
     .d_name    = "/",
     .d_parent  = NULL,
     .d_subdirs = LIST_HEAD_INIT(root_dentry.d_subdirs),
+    .d_type    = D_TYPE_DIR,
 };
 
 dentry_t sys_dentry = {
-    .d_inode   = NULL,
+    .d_inode   = &sys_inode,
     .d_name    = "sys",
     .d_parent  = &root_dentry,
     .d_subdirs = LIST_HEAD_INIT(sys_dentry.d_subdirs),
+    .d_type    = D_TYPE_DIR,
 };
 
 dentry_t dev_dentry = {
-    .d_inode   = NULL,
+    .d_inode   = &dev_inode,
     .d_name    = "dev",
     .d_parent  = &root_dentry,
     .d_subdirs = LIST_HEAD_INIT(dev_dentry.d_subdirs),
+    .d_type    = D_TYPE_DIR,
 };
 
 LIST_HEAD(filesystems_list);
@@ -225,6 +230,16 @@ int vfs_write(file_t *file, const char *buffer, size_t offset, size_t len) {
     return r;
 }
 
+size_t vfs_lseek(file_t *file, size_t offset, int whence) {
+    if (file->f_dentry->d_type == D_TYPE_DIR && offset == 0) {
+        file->f_fs_data = NULL;
+        return 0;
+    } else {
+        file->f_offset += offset;
+        return file->f_offset;
+    }
+}
+
 dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
     char dname[32];
     parent = vfs_get_parent_dentry(path, parent, dname);
@@ -255,6 +270,46 @@ dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
     strcpy(new->d_name, dname);
     list_add(&new->d_subdirs_list, &parent->d_subdirs);
     return new;
+}
+
+static int vfs_read_dir_callback(dentry_t *dentry, void *data) {
+    dentry_t *parent = (dentry_t *)data;
+    dentry->d_parent = parent;
+    list_add(&dentry->d_subdirs_list, &parent->d_subdirs);
+    return 0;
+}
+
+int vfs_read_dir(file_t *parent, read_dir_context_t *context) {
+    if (!parent->f_dentry->d_loaded) {
+        // make sure dentry is up-to-date
+        inode_t *parent_inode = NULL;
+        if (parent->f_dentry->d_mount)
+            parent_inode = parent->f_dentry->d_mount->root;
+        else
+            parent_inode = parent->f_inode;
+
+        if (parent_inode->i_op && parent_inode->i_op->read_dir)
+            if (parent_inode->i_op->read_dir(parent_inode,
+                                             vfs_read_dir_callback,
+                                             (void *)parent->f_dentry) == 0)
+                parent->f_dentry->d_loaded = true;
+    }
+    list_head_t *head = NULL;
+    // we use dir's f_fs_data to save next iterate head
+    if (parent->f_fs_data == NULL) {
+        head = parent->f_dentry->d_subdirs.next;
+        if (head == &parent->f_dentry->d_subdirs)
+            return -1;
+    } else {
+        head = (list_head_t *)parent->f_fs_data;
+        if (head == &parent->f_dentry->d_subdirs)
+            return -1;
+    }
+    dentry_t *next_subdir = container_of(head, dentry_t, d_subdirs_list);
+    parent->f_fs_data     = (void *)head->next;
+    context->d_inode      = next_subdir->d_inode;
+    strcpy(context->d_name, next_subdir->d_name);
+    return 0;
 }
 
 dentry_t *vfs_get_root() { return &root_dentry; }
@@ -303,7 +358,10 @@ int vfs_mount(const char *dev, const char *mountpoint, const char *fstype,
         return -5;
     }
     // mount superblock
-    dent_mp->d_inode = ret_sb->s_root;
     dent_mp->d_type  = D_TYPE_MOUNTED;
+    mount_t *mount   = (mount_t *)kmalloc(sizeof(mount_t));
+    mount->sb        = ret_sb;
+    mount->root      = ret_sb->s_root;
+    dent_mp->d_mount = mount;
     return 0;
 }

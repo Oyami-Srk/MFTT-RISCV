@@ -5,6 +5,7 @@
 #ifndef __SYSCALL_H__
 #define __SYSCALL_H__
 
+#include <stddef.h>
 #include <sys_structs.h>
 #include <syscall_nums.h>
 #include <types.h>
@@ -25,7 +26,7 @@ int    pipe2(int fd[2]);
 int    dup(int fd);
 int    dup3(int old, int new);
 int    chdir(const char *path);
-size_t getdents64(int fd, struct dirent *buf, size_t len);
+size_t getdents64(int fd, dirent_t *buf, size_t len);
 int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath,
            int flags);
 int unlinkat(int dirfd, const char *path, int flags);
@@ -33,7 +34,7 @@ int mkdirat(int dirfd, const char *path, int mode);
 int umount2(const char *path, int flags);
 int mount(const char *dev, const char *dir, const char *fstype, uint64_t flags,
           const void *data);
-int fstat(int fd, struct kstat *kst);
+int fstat(int fd, kstat_t *kst);
 int clone(int flags, char *stack, int ptid, int tls, int ctid);
 int fork();
 int execve(const char *path, char *const argv[], char *const envp[]);

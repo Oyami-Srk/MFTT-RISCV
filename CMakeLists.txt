@@ -39,6 +39,7 @@ PROJECT(MyFirstTouchToRISCV)
 #SET(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 SET(IMG_UTILS ${PROJECT_SOURCE_DIR}/tools/scripts/img_utils)
 SET(DISK_IMAGE fs.img)
+SET(FS_CONTENT ${PROJECT_SOURCE_DIR}/tools/fs_contents/)
 
 FILE(GLOB_RECURSE ASM_SRCS "kernel/*/*.S")
 FILE(GLOB_RECURSE C_SRCS "kernel/*/*.c")
@@ -95,6 +96,7 @@ SET(USER_PROGS prog1)
 # End of user prog
 
 # Generate HD.img
+FILE(GLOB_RECURSE FS_CONTENTS ${FS_CONTENT}/*)
 IF ("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
     FIND_PROGRAM(UDISKSCTL "udisksctl")
     FIND_PROGRAM(RSYNC "rsync")
@@ -104,6 +106,7 @@ IF ("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
         ADD_CUSTOM_COMMAND(OUTPUT ${DISK_IMAGE}
                 COMMAND ${IMG_UTILS} attach ${IMG}
                 COMMAND ${IMG_UTILS} sync ${CMAKE_BINARY_DIR}/userprogs/ ${IMG} .
+                COMMAND ${IMG_UTILS} sync ${FS_CONTENT} ${IMG} .
                 COMMAND ${IMG_UTILS} detach ${IMG}
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                 )
@@ -113,6 +116,7 @@ IF ("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
 
         ADD_CUSTOM_COMMAND(OUTPUT ${DISK_IMAGE}
                 DEPENDS ${USER_PROGS}
+                DEPENDS ${FS_CONTENTS}
                 APPEND
                 )
     ELSE ()

@@ -430,7 +430,7 @@ static int read(file_t *file, char *buffer, size_t offset, size_t len) {
         bio_cache_release(buf);
         r_size -= 512;
         p_clus += 512;
-        buf += 512;
+        buffer += 512;
         if (p_clus >= BytesPerClus) {
             clus   = get_next_clus_in_FAT(fs, clus);
             p_clus = 0;

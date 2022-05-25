@@ -17,9 +17,10 @@ What I've done:
 * General FDT Prober framework
 * General Driver framework
 * FAT Fs (Currently read only)
+* execve (But only 1/3 to successfully run TvT)
 
 What I'm doing:
-* execve
+* Syscalls for comp
 
 What I've not done:
 * Time managment

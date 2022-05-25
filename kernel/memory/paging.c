@@ -68,7 +68,9 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
         if ((pte = (pte_st *)walk_pages(page_dir, a, 1)) == NULL)
             return -1;
         if (pte->fields.V) {
-            kprintf("[MEM] Paging remap for VA 0x%lx => PA 0x%lx.\n", va, pa);
+            kprintf("[MEM] Paging remap for VA 0x%lx => PA 0x%lx. pte addr: "
+                    "0x%lx.\n",
+                    a, pa, pte);
             return -2;
         }
         pte->fields.PhyPageNumber = (uint64_t)pa >> PG_SHIFT;
@@ -103,8 +105,9 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
             kpanic("vmunmap: not mapped");
         if (pte->fields.Type == 0)
             kpanic("vmunmap: not a leaf");
-        char *pa  = (char *)((uint64_t)pte->fields.PhyPageNumber << PG_SHIFT);
-        int   ref = decrease_page_ref(&memory_info, pa);
+        char *pa = (char *)((uint64_t)pte->fields.PhyPageNumber << PG_SHIFT);
+        kprintf("unmap 0x%lx => 0x%lx, pte addr: 0x%lx.\n", a, pa, pte);
+        int ref = decrease_page_ref(&memory_info, pa);
         if (do_free && ref == 0) {
             page_free(pa, 1);
         }

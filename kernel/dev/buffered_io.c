@@ -45,7 +45,7 @@ buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr) {
                                    buf) {
             if (buf->reference == 0) {
                 todelete = buf;
-                return NULL;
+                break;
             }
         }
         if (todelete) {
@@ -75,6 +75,7 @@ buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr) {
 buffered_io_t *bio_cache_read(uint16_t dev, size_t addr) {
     assert(addr % BUFFER_SIZE == 0, "Addr must be aligned to buffer size.");
     buffered_io_t *buf = bio_cache_get(dev, addr);
+    assert(buf, "Cannot alloc buf.");
     if (buf->valid)
         return buf;
     if (!bio_cache.dev_rw[dev])

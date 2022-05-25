@@ -116,10 +116,12 @@ void proc_free(proc_t *proc, bool keep) {
     }
     // unmap all userspace
     pde_t pagedir = proc->page_dir;
-    unmap_pages(pagedir, proc->prog_image_start, proc->prog_size / PG_SIZE,
-                true);
+    unmap_pages(pagedir, proc->prog_image_start,
+                PG_ROUNDUP(proc->prog_size) / PG_SIZE, true);
     unmap_pages(pagedir, proc->stack_top,
-                (proc->stack_bottom - proc->stack_top) / PG_SIZE, true);
+                PG_ROUNDUP(proc->stack_bottom - (uintptr_t)proc->stack_top) /
+                    PG_SIZE,
+                true);
     if (!keep) {
         spinlock_acquire(&os_env.proc_lock);
         clear_bit(os_env.proc_bitmap, proc->pid);

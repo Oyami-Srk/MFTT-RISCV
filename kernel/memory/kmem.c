@@ -35,9 +35,11 @@ struct __kmem_block {
     uint32_t   size; // size is memory block size, not include header.
     kmem_pool *pool;
     union __mem {
-        char                 mem[0];
-        struct __kmem_block *prev_free;
-        struct __kmem_block *next_free;
+        char mem[0];
+        struct {
+            struct __kmem_block *prev_free;
+            struct __kmem_block *next_free;
+        } list;
     } mem;
     rb_node tree_node;
 } __attribute__((aligned(4)));
@@ -45,8 +47,6 @@ typedef struct __kmem_block kmem_block;
 
 const size_t kmem_block_head_size =
     sizeof(uint16_t) * 2 + sizeof(uint32_t) + sizeof(kmem_pool *);
-
-// (((kmem_block *)0)->mem.mem) == kmem_block_head_size
 
 // rbtree->key is size, include struct itself
 
@@ -90,27 +90,39 @@ static void insert_into_pool(kmem_pool *pool, char *mem, size_t sz) {
     node->key     = sz;
 
     rb_node *existed = rb_insert(&pool->free_tree, node);
-    if (existed) {
-        // there is a existed node at the same size
+    if (existed && existed != node) {
+        /*
+         * 当前存在同样大小的block，做如下操作：
+         * 若已经存在的block有下一项，则插入下一项和已经存在的block之间
+         * 若已经存在的block没有下一项，则该block为已经存在的block的下一项
+         * 更新相应的type标志
+         */
         kmem_block *eblock = container_of(existed, kmem_block, tree_node);
         assert(eblock->cookie == KMEM_COOKIE, "Existed Block invalid.");
         assert(eblock->type & KMEM_TYPE_IN_TREE,
                "Existed Block type mismatch.");
         assert(eblock->pool == pool, "Existed Block not inside our pool.");
+        assert(existed->key == node->key, "Exitsed but not same key.");
 
-        block->mem.prev_free = eblock;
-        if (eblock->mem.next_free) {
-            assert(eblock->type & KMEM_TYPE_HAVE_NEXT,
-                   "Existed block type mismatch");
+        if (eblock->type & KMEM_TYPE_HAVE_NEXT) {
+            assert(eblock->mem.list.next_free, "Have next but no next.");
+            kmem_block *next = eblock->mem.list.next_free;
+            assert(next->mem.list.prev_free == eblock, "list guard.");
+            next->mem.list.prev_free   = block;
+            block->mem.list.next_free  = next;
+            eblock->mem.list.next_free = block;
+            block->mem.list.prev_free  = eblock;
+            // set flags
             block->type |= KMEM_TYPE_HAVE_NEXT;
-            block->mem.next_free  = eblock->mem.next_free;
-            eblock->mem.next_free = block;
         } else {
+            eblock->mem.list.next_free = block;
+            block->mem.list.prev_free  = eblock;
             eblock->type |= KMEM_TYPE_HAVE_NEXT;
-            eblock->mem.next_free = block;
         }
     } else {
         block->type |= KMEM_TYPE_IN_TREE;
+        block->mem.list.next_free = NULL;
+        block->mem.list.prev_free = NULL;
     }
 }
 
@@ -118,23 +130,60 @@ static void insert_into_pool(kmem_pool *pool, char *mem, size_t sz) {
 static void remove_from_pool(kmem_block *block) {
     assert(block->cookie == KMEM_COOKIE, "Kmem block invalid.");
     assert(block->pool, "Kmem Block have not inserted into a pool.");
-    assert(block->type & KMEM_TYPE_IN_TREE, "Kmem block have not in the tree.");
     kmem_pool *pool = block->pool;
+    /*
+     * 将内存块从内存池中移除有如下步骤：
+     * 判断内存块是否有树节点，如果有：
+     *      如果有后继，则用后继替代
+     *      如果没有后继，则删除树节点
+     * 如果没有：
+     *      如果有后继，将前驱和后继链接（因为块在池内，不在树上必然存在前驱）
+     *      如果没有后继，将前驱设为无后继状态
+     */
+
+    kmem_block *prev = block->mem.list.prev_free;
+    if (!(block->type & KMEM_TYPE_IN_TREE)) {
+        assert(prev, "Not in tree but no prev");
+        assert(prev->cookie == KMEM_COOKIE, "Prev block is not valid.");
+        assert(prev->pool == pool, "Prev block is not inside correct pool.");
+        assert(prev->mem.list.next_free == block,
+               "Prev block's next is not current block.");
+    } else {
+        assert(prev == NULL, "In tree but have prev.");
+    }
+
+    kmem_block *next = block->mem.list.next_free;
     if (block->type & KMEM_TYPE_HAVE_NEXT) {
-        kmem_block *next = block->mem.next_free;
+        assert(next, "Have next but no next.");
         assert(next->cookie == KMEM_COOKIE, "Next block is not valid.");
         assert(next->pool == pool, "Next block is not inside correct pool.");
-        assert(next->mem.prev_free == block,
+        assert(next->mem.list.prev_free == block,
                "Next block's prev is not current block.");
-
-        rb_replace(&block->tree_node, &next->tree_node);
-        next->mem.prev_free = NULL;
-        next->type |= KMEM_TYPE_IN_TREE;
-        block->type &= ~(KMEM_TYPE_HAVE_NEXT | KMEM_TYPE_IN_TREE);
     } else {
-        rb_remove(&pool->free_tree, &block->tree_node);
-        block->type &= ~(KMEM_TYPE_IN_TREE);
+        assert(next == NULL, "Have no next but next not null.");
     }
+
+    if (block->type & KMEM_TYPE_IN_TREE) {
+        if (block->type & KMEM_TYPE_HAVE_NEXT) {
+            rb_replace(&block->tree_node, &next->tree_node);
+            next->mem.list.prev_free = NULL;
+            next->type |= KMEM_TYPE_IN_TREE;
+            block->type &= ~(KMEM_TYPE_HAVE_NEXT | KMEM_TYPE_IN_TREE);
+        } else {
+            rb_remove(&pool->free_tree, &block->tree_node);
+            block->type &= ~(KMEM_TYPE_IN_TREE);
+        }
+    } else {
+        if (block->type & KMEM_TYPE_HAVE_NEXT) {
+            prev->mem.list.next_free = next;
+            next->mem.list.prev_free = prev;
+            block->type &= ~(KMEM_TYPE_HAVE_NEXT);
+        } else {
+            prev->mem.list.next_free = NULL;
+            prev->type &= ~(KMEM_TYPE_HAVE_NEXT);
+        }
+    }
+    block->mem.list.prev_free = block->mem.list.next_free = NULL;
 }
 
 static rb_node *rb_search_upper(rb_node *x, uint64_t key) {
@@ -156,18 +205,32 @@ static rb_node *rb_search_upper(rb_node *x, uint64_t key) {
 }
 
 char *kmalloc(size_t size) {
+    /*
+     * 申请内存操作如下：
+     * 1. 遍历内存池，从池中找到一个能完全装下内存的最小块
+     * 2. 将该块从内存池中取出
+     * 3. 若块大小 - (头大小 + 所申请的大小)
+     *    大于空闲内存块结构的大小，则将剩余的部分插入回内存池
+     */
     spinlock_acquire(&kmem_lock);
-    size += kmem_block_head_size;
     size = ROUNDUP_WITH(16, size);
-    if (size < sizeof(kmem_block)) {
-        size = sizeof(kmem_block);
+
+    size_t need_size = size + kmem_block_head_size;
+    if (need_size < sizeof(kmem_block)) {
+        need_size = sizeof(kmem_block);
+        size      = need_size - kmem_block_head_size;
     }
+    assert(need_size >= sizeof(kmem_block), "Size guard.");
+    // need_size 是所需的最小内存块大小
+
     kmem_pool *pool = memory_pool;
     rb_node   *node = NULL;
     spinlock_acquire(&pool->lock);
     while (pool && !node) {
-        node = rb_search_upper(pool->free_tree.root, size);
+        node = rb_search_upper(pool->free_tree.root, need_size);
         if (node == NULL) {
+            if (need_size <= pool->free)
+                kpanic("Kmem have free but cannot search tree.");
             spinlock_release(&pool->lock);
             pool = pool->next_pool;
             if (!pool)
@@ -177,14 +240,17 @@ char *kmalloc(size_t size) {
     }
     if (node == NULL)
         return NULL;
+
     kmem_block *block = container_of(node, kmem_block, tree_node);
     remove_from_pool(block);
-    size_t remaining_size = 0;
-    if ((remaining_size = block->size - size) > sizeof(kmem_block) + 16) {
+    size_t remaining_size =
+        block->size - size; // 当前头这里用，所以不需要加头大小
+    if (remaining_size > sizeof(kmem_block)) {
         char *new_block = block->mem.mem + size;
         block->size     = size;
         insert_into_pool(pool, new_block, remaining_size);
     }
+    assert(pool->free_tree.root, "test.");
     block->type = KMEM_TYPE_INUSE;
     pool->free -= block->size + kmem_block_head_size;
     spinlock_release(&pool->lock);
@@ -205,13 +271,7 @@ void kfree(void *p) {
                "Next Block is not KMem block.");
         while (next_block->type & KMEM_TYPE_FREE) {
             // detach free block
-            if (next_block->type & KMEM_TYPE_IN_TREE) {
-                remove_from_pool(next_block);
-            } else {
-                kmem_block *nprev_block    = next_block->mem.prev_free;
-                kmem_block *nnext_block    = next_block->mem.next_free;
-                nprev_block->mem.next_free = nnext_block;
-            }
+            remove_from_pool(next_block);
             block->size += next_block->size + kmem_block_head_size;
             // search for next
             next_block = (kmem_block *)(next_block->mem.mem + next_block->size);

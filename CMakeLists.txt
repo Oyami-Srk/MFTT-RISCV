@@ -33,7 +33,7 @@ SET(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # Enable asm
 ENABLE_LANGUAGE(ASM)
 
-SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fno-stack-protector -g -nostdlib -mcmodel=medany")
+SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fno-stack-protector -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage")
 
 PROJECT(MyFirstTouchToRISCV)
 #SET(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")

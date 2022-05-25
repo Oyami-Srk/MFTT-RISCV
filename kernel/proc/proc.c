@@ -75,10 +75,13 @@ proc_t *proc_alloc() {
     spinlock_init(&proc->lock);
     spinlock_acquire(&proc->lock);
     spinlock_release(&os_env.proc_lock);
-    proc->pid          = pid;
-    proc->kernel_stack = page_alloc(1, PAGE_TYPE_SYSTEM);
+    proc->pid = pid;
+
+    proc->kernel_stack =
+        page_alloc(PG_ROUNDUP(PROG_KSTACK_SIZE) / PG_SIZE, PAGE_TYPE_SYSTEM);
     memset(proc->kernel_stack, 0, PG_SIZE);
-    proc->kernel_sp = proc->kernel_stack + PG_SIZE;
+    proc->kernel_stack_top = proc->kernel_stack + PG_ROUNDUP(PROG_KSTACK_SIZE);
+    proc->kernel_sp        = proc->kernel_stack_top;
 
     proc->page_dir = alloc_page_dir();
     if (!proc->page_dir) {

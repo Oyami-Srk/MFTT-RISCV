@@ -109,6 +109,13 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
     proc_free(old, true);
     spinlock_release(&old->lock);
 
+    // load elf file
+    bool ret = elf_load_to_process(old, vfs_reader, f);
+    if (!ret) {
+        // TODO: handle it
+        kpanic("no way...todo here");
+    }
+
     // load new stack
     char *process_stack_top = (char *)(PROC_STACK_BASE - stack_pages * PG_SIZE);
     map_pages(old->page_dir, (void *)(process_stack_top), process_stack,
@@ -120,19 +127,13 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
 
     old->stack_bottom = (char *)PROC_STACK_BASE;
     old->stack_top    = process_stack_top;
-
-    // load elf file
-    bool ret = elf_load_to_process(old, vfs_reader, f);
-    if (!ret) {
-        // TODO: handle it
-        kpanic("no way...todo here");
-    }
+    flush_tlb_all();
 
     // close file
     vfs_close(f);
 
     // let it go
-    old->status |= PROC_STATUS_READY;
+    old->status = PROC_STATUS_READY | PROC_STATUS_NORMAL;
 
     return argc; // jump to switch with argc as a0
 }

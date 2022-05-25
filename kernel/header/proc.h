@@ -81,8 +81,9 @@ struct task_context {
 #define PROC_ANY       0xFFFFFFFE
 #define PROC_INTERRUPT 0xFFFFFFFF
 
-#define PROC_STACK_SIZE 8192
-#define PROC_STACK_BASE 0x80000000
+#define PROC_STACK_SIZE  8192
+#define PROG_KSTACK_SIZE (1024 * 64)
+#define PROC_STACK_BASE  0x80000000
 
 #define PROC_NAME_SIZE 16
 
@@ -102,6 +103,7 @@ struct __proc_t {
     uint32_t            status;
     struct __proc_t    *parent;
     void               *kernel_stack;
+    void               *kernel_stack_top;
     struct task_context kernel_task_context;
     uint64_t            exit_status;
     spinlock_t          lock;

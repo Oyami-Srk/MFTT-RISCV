@@ -16,9 +16,11 @@ What I've done:
 * Virtual File System
 * General FDT Prober framework
 * General Driver framework
+* FAT Fs (Currently read only)
 
-What I need:
+What I'm doing:
+* execve
 
-* FAT Fs
+What I've not done:
 * Time managment
 * k210 port

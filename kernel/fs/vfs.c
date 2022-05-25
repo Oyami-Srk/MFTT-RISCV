@@ -137,7 +137,7 @@ dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
     }
     // not found
     inode_t *dir_inode = parent->d_inode;
-    if (!dir_inode || !dir_inode->i_op->lookup)
+    if (!dir_inode || !dir_inode->i_op || !dir_inode->i_op->lookup)
         return NULL;
     dentry_t *r;
     int       ret = dir_inode->i_op->lookup(dir_inode, cname, &r);

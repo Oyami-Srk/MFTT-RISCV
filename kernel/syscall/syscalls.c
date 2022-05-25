@@ -272,7 +272,49 @@ sysret_t sys_getdents64(struct trap_context *trapframe) {
     return sz_read;
 }
 
-sysret_t sys_execve(struct trap_context *) {}
+static int count_strs(const char **strs) {
+    int r = 0;
+    for (; strs[r] != NULL; r++)
+        ;
+    return r;
+}
+
+sysret_t sys_execve(struct trap_context *trapframe) {
+    const char  *path = ustrcpy_out((char *)trapframe->a0);
+    char *const *argv = (char *const *)trapframe->a1;
+    char *const *envp = (char *const *)trapframe->a2;
+    CSR_RWOR(sstatus, SSTATUS_SUM);
+    int    argc  = count_strs((const char **)argv);
+    int    envc  = count_strs((const char **)envp);
+    char **kargv = (char **)kmalloc(sizeof(char *) * argc);
+    char **kenvp = (char **)kmalloc(sizeof(char *) * envc);
+    assert(kargv, "out of memory.");
+    assert(kenvp, "out of memory.");
+    kargv[argc] = kenvp[envc] = NULL;
+    for (int i = 0; i < argc; i++) {
+        kargv[i] = ustrcpy_out(argv[i]);
+    }
+    for (int i = 0; i < envc; i++) {
+        kenvp[i] = ustrcpy_out(envp[i]);
+    }
+    CSR_RWAND(sstatus, ~SSTATUS_SUM);
+    // do execve
+    int r = do_execve(myproc(), myproc()->cwd, path, (const char **)kargv,
+                      (const char **)kenvp);
+    // free resource
+    for (int i = 0; i < envc; i++) {
+        kfree(kenvp[i]);
+    }
+    for (int i = 0; i < argc; i++) {
+        kfree(kargv[i]);
+    }
+    kfree(kenvp);
+    kfree(kargv);
+    kfree((char *)path);
+    // return argc
+    assert(r == argc, "argc not identical while do_execve.");
+    return r;
+}
 
 // Syscall table
 extern sysret_t sys_test(struct trap_context *);

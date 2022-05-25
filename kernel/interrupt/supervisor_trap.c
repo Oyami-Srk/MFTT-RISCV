@@ -98,10 +98,10 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
 
         if ((scause == 15 || scause == 13 || scause == 12) &&
             stval < KERN_BASE) {
-            // page fault.
-            if (do_pagefault((char *)stval,
-                             (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF)
-                                     << PG_SHIFT)) != 0) {
+            if (do_pagefault(
+                    (char *)stval,
+                    (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF) << PG_SHIFT),
+                    true) != 0) {
                 kpanic("do page fault failed.\n");
             }
         } else {
@@ -132,5 +132,8 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
         }
     }
     CSR_Write(sepc, sepc);
-    CSR_Write(sstatus, sstatus);
+    if (CSR_Read(sstatus) & SSTATUS_SUM)
+        CSR_Write(sstatus, sstatus | SSTATUS_SUM);
+    else
+        CSR_Write(sstatus, sstatus);
 }

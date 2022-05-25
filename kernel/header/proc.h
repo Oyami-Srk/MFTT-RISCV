@@ -135,6 +135,8 @@ void sleep(void *chan, spinlock_t *lock);
 void wakeup(void *chan);
 
 int do_fork(proc_t *parent);
+int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
+              const char *env[]);
 
 /* Note:
  *

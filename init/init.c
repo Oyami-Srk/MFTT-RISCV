@@ -67,7 +67,7 @@ int main() {
                     const char *argv[] = {"arg1", "pworld", "helloi", "arg4",
                                           NULL};
                     const char *env[]  = {"env1", "env2", NULL};
-                    execve("/mnt/prog1", (char *const *)argv,
+                    execve("/mnt/PROG1", (char *const *)argv,
                            (char *const *)env);
                 }
             } else

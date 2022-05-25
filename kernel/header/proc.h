@@ -122,7 +122,6 @@ struct __proc_t {
     // 0 - stdin, 1 - stdout, 2 - stderr
     file_t   *files[MAX_FILE_OPEN];
     dentry_t *cwd;
-    int       _padding[7]; // weired, i think there is a bug
 } __attribute__((aligned(16)));
 
 typedef struct __proc_t proc_t;

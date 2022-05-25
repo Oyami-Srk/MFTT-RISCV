@@ -106,7 +106,7 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
         if (pte->fields.Type == 0)
             kpanic("vmunmap: not a leaf");
         char *pa = (char *)((uint64_t)pte->fields.PhyPageNumber << PG_SHIFT);
-        kprintf("unmap 0x%lx => 0x%lx, pte addr: 0x%lx.\n", a, pa, pte);
+        // kprintf("unmap 0x%lx => 0x%lx, pte addr: 0x%lx.\n", a, pa, pte);
         int ref = decrease_page_ref(&memory_info, pa);
         if (do_free && ref == 0) {
             page_free(pa, 1);
@@ -184,7 +184,7 @@ pde_t alloc_page_dir() {
 
 int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
     // debug
-    kprintf("do vm copy at va 0x%lx ~ 0x%lx.\n", start, end);
+    // kprintf("do vm copy at va 0x%lx ~ 0x%lx.\n", start, end);
 
     char   *a;
     char   *va     = (char *)PG_ROUNDDOWN(start);
@@ -227,7 +227,7 @@ int do_pagefault(char *caused_va, pde_t pde, bool from_kernel) {
         kprintf("not use page fault.");
         return -3;
     }
-    kprintf("DO PF for 0x%lx, pde: 0x%lx.\n", caused_va, pde);
+    // kprintf("DO PF for 0x%lx, pde: 0x%lx.\n", caused_va, pde);
     pte_st *pte = (pte_st *)walk_pages(pde, caused_va, 0);
     char   *pa  = (char *)((uintptr_t)(pte->fields.PhyPageNumber << PG_SHIFT));
     if (!(pa >= memory_info.usable_memory_start &&

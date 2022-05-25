@@ -36,9 +36,10 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
         if ((scause == 15 || scause == 13 || scause == 12) &&
             stval < KERN_BASE) {
             // page fault.
-            if (do_pagefault((char *)stval,
-                             (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF)
-                                     << PG_SHIFT)) != 0) {
+            if (do_pagefault(
+                    (char *)stval,
+                    (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF) << PG_SHIFT),
+                    false) != 0) {
                 kpanic("do page fault failed.\n");
             }
         } else {

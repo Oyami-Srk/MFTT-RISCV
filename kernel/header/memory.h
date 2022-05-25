@@ -137,6 +137,6 @@ void  ustrcpy_in(char *ustr, char *kbuf);
 
 int vm_copy(pde_t dst, pde_t src, char *start, char *end);
 
-int do_pagefault(char *caused_va, pde_t pde);
+int do_pagefault(char *caused_va, pde_t pde, bool from_kernel);
 
 #endif // __MEMORY_H__

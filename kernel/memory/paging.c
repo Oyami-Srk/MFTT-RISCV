@@ -145,7 +145,8 @@ int mem_sysmap(void *va, void *pa, size_t size, int type) {
     sysmap->pa   = pa;
     sysmap->type = type;
     sysmap->size = size;
-    if (map_pages(os_env.kernel_pagedir, va, pa, size, type, false, true) != 0) {
+    if (map_pages(os_env.kernel_pagedir, va, pa, size, type, false, true) !=
+        0) {
         return -1;
     }
     list_add(&sysmap->list, &os_env.mem_sysmaps);
@@ -215,7 +216,7 @@ int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
     }
 }
 
-int do_pagefault(char *caused_va, pde_t pde) {
+int do_pagefault(char *caused_va, pde_t pde, bool from_kernel) {
     proc_t *proc = myproc();
     assert(proc->page_dir == pde,
            "PDE not identical to currently holding process.");
@@ -233,8 +234,12 @@ int do_pagefault(char *caused_va, pde_t pde) {
     }
     if (!pte)
         return -1;
-    kprintf("PF pa: 0x%lx, reference count: %d.\n", pa,
-            get_page_reference(&memory_info, pa));
+    // kprintf("PF pa: 0x%lx, reference count: %d.\n", pa,
+    //        get_page_reference(&memory_info, pa));
+    if (from_kernel && (CSR_Read(sstatus) & SSTATUS_SUM) == 0) {
+        CSR_RWOR(sstatus, SSTATUS_SUM);
+        return 0;
+    }
     uint8_t type = pte->fields.Type;
     if (type & PTE_TYPE_BIT_W) {
         kprintf("PF invailed.\n");

@@ -13,7 +13,6 @@
 // for elf loader.
 static size_t vfs_reader(void *data, uint64_t offset, char *target,
                          size_t size) {
-    memcpy(target, (char *)data + offset, size);
     vfs_lseek(data, offset, SEEK_SET);
     return vfs_read(data, target, 0, size);
 }
@@ -31,7 +30,6 @@ static inline char *get_offset_addr(char *base, char *addr, char *vbase) {
 
 int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
               const char *env[]) {
-    // TODO: a lock here?
     // locate file
     dentry_t *dentry = vfs_get_dentry(path, cwd);
     if (!dentry)
@@ -47,8 +45,8 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
         page_alloc(stack_pages, PAGE_TYPE_INUSE | PAGE_TYPE_USER);
     if (!process_stack)
         return -4; // cannot allocate stack
-    char *process_stack_top = (char *)(PROC_STACK_BASE - stack_pages * PG_SIZE);
-    char *sp                = process_stack_top;
+    char *stack_bottom = process_stack + PG_ROUNDUP(PROC_STACK_SIZE);
+    char *sp           = stack_bottom;
 
     int argc = count_strs(argv);
     int envc = count_strs(env);
@@ -104,12 +102,15 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
         }
     }
 
-    size_t offset_sp = process_stack_top - sp;
+    size_t offset_sp = stack_bottom - sp;
 
     // free old process
+    spinlock_acquire(&old->lock);
     proc_free(old, true);
+    spinlock_release(&old->lock);
 
     // load new stack
+    char *process_stack_top = (char *)(PROC_STACK_BASE - stack_pages * PG_SIZE);
     map_pages(old->page_dir, (void *)(process_stack_top), process_stack,
               PROC_STACK_SIZE, PTE_TYPE_RW, true, false);
 

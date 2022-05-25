@@ -109,9 +109,22 @@ void proc_free(proc_t *proc, bool keep) {
     // must hold lock
     assert(proc->lock.lock, "Proc free with unlocked.");
     // TODO: free resource. walk pde and decreate reference count
-    spinlock_acquire(&os_env.proc_lock);
-    clear_bit(os_env.proc_bitmap, proc->pid);
-    spinlock_release(&os_env.proc_lock);
+    // free file
+    for (int i = 0; i < MAX_FILE_OPEN; i++) {
+        if (proc->files[i])
+            vfs_close(proc->files[i]);
+    }
+    // unmap all userspace
+    pde_t pagedir = proc->page_dir;
+    unmap_pages(pagedir, proc->prog_image_start, proc->prog_size / PG_SIZE,
+                true);
+    unmap_pages(pagedir, proc->stack_top,
+                (proc->stack_bottom - proc->stack_top) / PG_SIZE, true);
+    if (!keep) {
+        spinlock_acquire(&os_env.proc_lock);
+        clear_bit(os_env.proc_bitmap, proc->pid);
+        spinlock_release(&os_env.proc_lock);
+    }
 }
 
 // Return current CPU process.

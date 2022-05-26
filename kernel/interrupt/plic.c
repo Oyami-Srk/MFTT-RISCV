@@ -3,13 +3,13 @@
 //
 
 #include "./plic.h"
-#include <types.h>
 #include <configs.h>
 #include <driver/console.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <memory.h>
 #include <riscv.h>
+#include <types.h>
 
 static char  *plic_pa       = 0;
 static size_t plic_mem_size = 0;
@@ -83,7 +83,7 @@ int plic_register_irq(int irq) {
 static int plic_fdt_prober(uint32_t version, const char *node_name,
                            const char *begin, uint32_t addr_cells,
                            uint32_t size_cells, const char *strings) {
-    kprintf("[FDT] FDT Prober for Memory with node name: %s\n", node_name);
+    kprintf("[FDT] FDT Prober for PLIC with node name: %s\n", node_name);
     const char *p = begin;
     uint32_t    tag;
     int         depth     = 1;
@@ -139,10 +139,16 @@ static int plic_fdt_prober(uint32_t version, const char *node_name,
             break;
         }
     }
-    assert(discoverd, "[FDT] PLIC undetected.");
+    if (!discoverd)
+        kprintf("[FDT] Current round not detected PLIC info.\n");
     return (int)(p - begin);
 }
 
 static fdt_prober prober = {.name = "plic", .prober = plic_fdt_prober};
 
+// for K210 TODO: use generic 'or'
+static fdt_prober prober2 = {.name   = "interrupt-controller",
+                             .prober = plic_fdt_prober};
+
 ADD_FDT_PROBER(prober);
+ADD_FDT_PROBER(prober2);

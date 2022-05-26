@@ -95,9 +95,8 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
     } else {
         //        spinlock_acquire(&exception_lock);
         // cause by exception
-
-        if ((scause == 15 || scause == 13 || scause == 12) &&
-            stval < KERN_BASE) {
+        if ((scause == 15 || scause == 13 || scause == 12 || scause == 5) &&
+            stval < 0x80000000) {
             if (do_pagefault(
                     (char *)stval,
                     (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF) << PG_SHIFT),
@@ -122,11 +121,6 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
                     cpuid());
             //        spinlock_release(&exception_lock);
             //        SBI_shutdown();
-            kprintf("env: 0x%lx~0x%lx, inside?:%d.\n", &os_env,
-                    (uintptr_t)(&os_env) + sizeof(os_env),
-                    stval < (uintptr_t)(&os_env) + sizeof(os_env) &&
-                        stval >= (uintptr_t)(&os_env));
-            kprintf("0x%lx\n", stval);
             while (1)
                 ;
         }

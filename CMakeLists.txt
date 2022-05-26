@@ -6,7 +6,15 @@ SET(CMAKE_SYSTEM_NAME Generic)
 SET(CMAKE_SYSTEM_PROCESSOR RV64)
 SET(CMAKE_EXECUTABLE_SUFFIX ".elf")
 
-SET(OS_PLATFORM qemu)
+#SET(OS_PLATFORM qemu)
+SET(OS_PLATFORM k210)
+IF ("${OS_PLATFORM}" STREQUAL "k210")
+    SET(K210-PORT "/dev/ttyUSB0")
+    SET(_BIN_OFFSET "0x20000")
+ELSE ()
+    SET(_BIN_OFFSET "0x200000")
+ENDIF ()
+MATH(EXPR BIN_OFFSET ${_BIN_OFFSET})
 
 # Find cross compiler for RISCV64
 FIND_PROGRAM(RISCV_C_COMPILER "riscv64-elf-gcc")
@@ -34,6 +42,11 @@ SET(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 ENABLE_LANGUAGE(ASM)
 
 SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fno-stack-protector -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage")
+IF ("${OS_PLATFORM}" STREQUAL "qemu")
+    ADD_COMPILE_DEFINITIONS(PLATFORM_QEMU)
+ELSE ()
+    ADD_COMPILE_DEFINITIONS(PLATFORM_K210)
+ENDIF ()
 
 PROJECT(MyFirstTouchToRISCV)
 #SET(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
@@ -54,7 +67,7 @@ INCLUDE_DIRECTORIES(SYSTEM header)
 # Generate kernel.elf
 ADD_EXECUTABLE(kernel.elf ${SRCS})
 TARGET_INCLUDE_DIRECTORIES(kernel.elf SYSTEM PRIVATE "kernel/header")
-SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel.ld ")
+SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel-${OS_PLATFORM}.ld ")
 TARGET_LINK_LIBRARIES(kernel.elf init_code)
 ADD_DEPENDENCIES(kernel.elf init_code)
 ADD_CUSTOM_COMMAND(TARGET kernel.elf
@@ -132,7 +145,7 @@ ENDIF ()
 SET(BIN_SBI rustsbi-${OS_PLATFORM}.bin)
 ADD_CUSTOM_COMMAND(OUTPUT ${BIN_SBI}
         COMMAND cargo make --release
-        COMMAND cp target/riscv64imac-unknown-none-elf/release/rustsbi-qemu.bin ${CMAKE_BINARY_DIR}/${BIN_SBI}
+        COMMAND cp target/riscv64imac-unknown-none-elf/release/rustsbi-${OS_PLATFORM}.bin ${CMAKE_BINARY_DIR}/${BIN_SBI}
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/SBI/${OS_PLATFORM}/rustsbi-${OS_PLATFORM})
 ADD_CUSTOM_TARGET(generate_${BIN_SBI} ALL DEPENDS ${BIN_SBI})
 # End of generation
@@ -143,7 +156,7 @@ SET(BIN_KERNEL kernel.bin)
 ADD_CUSTOM_COMMAND(OUTPUT ${BIN}
         COMMAND ${CMAKE_OBJCOPY} $<TARGET_FILE:kernel.elf> --strip-all -O binary ${CMAKE_BINARY_DIR}/${BIN_KERNEL}
         COMMAND dd conv=notrunc bs=1 if=${BIN_SBI} of=${BIN}
-        COMMAND dd conv=notrunc bs=1 if=${BIN_KERNEL} of=${BIN} seek=2097152
+        COMMAND dd conv=notrunc bs=1 if=${BIN_KERNEL} of=${BIN} seek=${BIN_OFFSET}
         COMMAND cp ${BIN} ..
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         )
@@ -155,3 +168,12 @@ ADD_CUSTOM_COMMAND(OUTPUT ${BIN}
         APPEND
         )
 # End of generation
+
+# Flush
+IF ("${OS_PLATFORM}" STREQUAL "k210")
+    SET(KFLASH ${PROJECT_SOURCE_DIR}/tools/scripts/kflash.py)
+    ADD_CUSTOM_TARGET(Flash-K210
+            COMMAND ${KFLASH} -p ${K210-PORT} -b 1500000 -t ${BIN}
+            DEPENDS ${BIN})
+ENDIF ()
+# End of Flush

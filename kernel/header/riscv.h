@@ -27,12 +27,16 @@ static ALWAYS_INLINE inline uint64_t r_tp() {
 #define CSR_RWAND(reg, value) CSR_Write(reg, CSR_Read(reg) & (value))
 
 // Supervisor Status Register, sstatus
-#define SSTATUS_SPP  (1L << 8)  // Previous mode, 1=Supervisor, 0=User
-#define SSTATUS_SPIE (1L << 5)  // Supervisor Previous Interrupt Enable
-#define SSTATUS_UPIE (1L << 4)  // User Previous Interrupt Enable
-#define SSTATUS_SIE  (1L << 1)  // Supervisor Interrupt Enable
-#define SSTATUS_UIE  (1L << 0)  // User Interrupt Enable
-#define SSTATUS_SUM  (1L << 18) // User memory accessable
+#define SSTATUS_SPP  (1L << 8) // Previous mode, 1=Supervisor, 0=User
+#define SSTATUS_SPIE (1L << 5) // Supervisor Previous Interrupt Enable
+#define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
+#define SSTATUS_SIE  (1L << 1) // Supervisor Interrupt Enable
+#define SSTATUS_UIE  (1L << 0) // User Interrupt Enable
+#ifdef PLATFORM_QEMU
+#define SSTATUS_SUM (1L << 18) // User memory accessable, for 1.10+
+#else
+#define SSTATUS_SUM (0L << 18) // User memory accessable, for 1.9 (k210)
+#endif
 
 // Supervisor Interrupt Enable
 #define SIE_SEIE (1L << 9) // external

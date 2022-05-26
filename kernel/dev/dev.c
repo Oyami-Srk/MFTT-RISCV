@@ -16,6 +16,8 @@ int init_driver() {
 
     section_foreach_entry(DevDrivers, dev_driver_t *, drv) {
         int dlevel = (*drv)->loading_sequence;
+        if (dlevel == 0xFF)
+            continue;
 
         list_foreach_entry(head_driver, dev_driver_t, list, added) {
             if (added->loading_sequence >= dlevel) {
@@ -37,8 +39,9 @@ int init_driver() {
         assert(drv->dev_id < MAX_DEV_ID, "Driver's device id exceeded max id.");
         if (drv->dev_id) {
             if (devfs[drv->dev_id]) {
-                kprintf("[DRV] Driver %s required an already existed dev id.");
-                return 2;
+                kprintf("[DRV] Driver %s required an already existed dev id.\n",
+                        drv->name);
+                continue;
             }
             if (drv->dev_id != 0)
                 devfs[drv->dev_id] = drv;

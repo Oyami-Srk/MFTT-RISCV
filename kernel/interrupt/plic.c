@@ -60,6 +60,7 @@ void plic_end(int irq) {
 }
 
 int plic_register_irq(int irq) {
+    kprintf("[PLIC] Register IRQ %d.\n", irq);
     // 1 is prio
     MEM_IO_WRITE(uint32_t,
                  HARDWARE_VBASE + PLIC_BASE_OFFSET + irq * sizeof(uint32_t), 1);

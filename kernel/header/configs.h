@@ -11,6 +11,7 @@
 
 #define DEV_TTY         1
 #define DEV_VIRTIO_DISK 2
+#define DEV_SDCARD_DISK 3
 #define DEV_BUFFERED_IO 5
 
 // FIXME: BAD HARD CODE

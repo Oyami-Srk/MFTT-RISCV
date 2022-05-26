@@ -2,7 +2,6 @@
 // Created by shiroko on 22-5-18.
 //
 
-#include <types.h>
 #include "./virtio.h"
 #include <dev/dev.h>
 #include <driver/console.h>
@@ -11,6 +10,7 @@
 #include <memory.h>
 #include <proc.h>
 #include <riscv.h>
+#include <types.h>
 #include <vfs.h>
 
 static struct virtio_mmio_info_t {
@@ -163,7 +163,9 @@ dev_driver_t virtio_mmio = {
     .list             = LIST_HEAD_INIT(virtio_mmio.list),
 };
 
+#ifdef PLATFORM_QEMU
 ADD_DEV_DRIVER(virtio_mmio);
+#endif
 
 // virtio-mmio fdt prober
 #include <lib/sys/fdt.h>

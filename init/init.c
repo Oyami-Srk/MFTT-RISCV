@@ -10,18 +10,24 @@
 
 #define STAT_MAX_NAME 32
 
+#ifdef PLATFORM_QEMU
+#define DISK_DEVICE "/dev/vda"
+#else
+#define DISK_DEVICE "/dev/sda"
+#endif
+
 int main() {
     syscall_test(0, 0);
     printf("Hello world.!\n");
-    int fd_disk = openat(0, "/dev/vda", 0, 0);
+    int fd_disk = openat(0, DISK_DEVICE, 0, 0);
     if (fd_disk == -1)
-        printf("Disk /dev/vda not found.\n");
+        printf("Disk " DISK_DEVICE " not found.\n");
     else {
         char buf[32];
         lseek(fd_disk, 119, 0);
         read(fd_disk, buf, 0x20);
         buf[31] = '\0';
-        printf("lseek and read /dev/vda test: %s\n", buf);
+        printf("lseek and read " DISK_DEVICE " test: %s\n", buf);
     }
 
     char      buffer[64];
@@ -38,13 +44,14 @@ int main() {
     if (parent_fd < 0) {
         printf("Failed open root.\n");
     } else {
+        printf("Parent fd: %d.\n", parent_fd);
         if (mkdirat(parent_fd, "mnt", 0) != 0) {
             printf("Failed to mkdir /mnt.\n");
         } else {
             int mnt = openat(AT_FDCWD, "/mnt", 0, 0);
             if (mnt) {
-                if (mount("/dev/vda", "/mnt", "fat32", 0, NULL) != 0)
-                    printf("Cannot mount /dev/vda to /mnt.\n");
+                if (mount(DISK_DEVICE, "/mnt", "fat32", 0, NULL) != 0)
+                    printf("Cannot mount " DISK_DEVICE " to /mnt.\n");
                 else {
                     printf("test ls /mnt.\n");
                     while (getdents64(mnt, dent, 64) != 0) {
@@ -74,7 +81,7 @@ int main() {
                 printf("Cannot create mnt dir");
         }
     }
-    for (int i = 0; i <= 3; i++) {
+    for (int i = 0; i <= 30000; i++) {
         printf("ticks: %d.\n", ticks());
         sleep(2);
     }

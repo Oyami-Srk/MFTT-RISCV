@@ -3,7 +3,6 @@
 //
 
 // TODO: Support virtio.pci
-#include <types.h>
 #include "./virtio.h"
 #include <dev/dev.h>
 #include <driver/console.h>
@@ -15,6 +14,7 @@
 #include <memory.h>
 #include <proc.h>
 #include <trap.h>
+#include <types.h>
 
 #define VIRTIO_BLK_T_IN  0 // read the disk
 #define VIRTIO_BLK_T_OUT 1 // write the disk
@@ -239,6 +239,7 @@ static int virtio_disk_rw_lba(size_t offset, char *buf, size_t len, int func) {
     memset(kbuf, 0, rounded_size);
     virtio_disk_rw(sector, kbuf, rounded_size / SECTOR_SIZE, func);
     memcpy(buf, kbuf + sector_offset, len);
+    kfree(kbuf);
     return len;
 }
 
@@ -316,4 +317,6 @@ dev_driver_t virtio_mmio_disk = {
     .list             = LIST_HEAD_INIT(virtio_mmio_disk.list),
 };
 
+#ifdef PLATFORM_QEMU
 ADD_DEV_DRIVER(virtio_mmio_disk);
+#endif

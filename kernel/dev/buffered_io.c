@@ -206,7 +206,7 @@ int init_buffered_io(dev_driver_t *drv) {
 dev_driver_t bio_drv = {
     .name             = "buffered_io",
     .init             = init_buffered_io,
-    .loading_sequence = 5, // load after all disk device setup.
+    .loading_sequence = 8, // load after all disk device setup.
     .dev_id           = DEV_BUFFERED_IO,
     .major_ver        = 0,
     .minor_ver        = 1,

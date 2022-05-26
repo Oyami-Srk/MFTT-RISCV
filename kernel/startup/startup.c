@@ -95,7 +95,6 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             flush_tlb_all();
             enable_trap();
             asm volatile("wfi");
-            //            kprintf("[%d]Recveivd interrupt.\n", cpuid());
             ;
         }
     }

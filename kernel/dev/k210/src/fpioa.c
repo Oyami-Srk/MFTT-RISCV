@@ -4849,7 +4849,7 @@ int fpioa_set_function_raw(int number, fpioa_function_t function) {
         function >= FUNC_MAX)
         return -1;
     /* Atomic write register */
-    fpioa->io[number] = (const fpioa_io_config_t){
+    const fpioa_io_config_t config = (const fpioa_io_config_t){
         .ch_sel = function_config[function].ch_sel,
         .ds     = function_config[function].ds,
         .oe_en  = function_config[function].oe_en,
@@ -4863,8 +4863,9 @@ int fpioa_set_function_raw(int number, fpioa_function_t function) {
         .ie_inv = function_config[function].ie_inv,
         .di_inv = function_config[function].di_inv,
         .st     = function_config[function].st,
-        /* resv and pad_di do not need initialization */
+        // resv and pad_di do not need initialization
     };
+    MEM_IO_WRITE(uint32_t, &fpioa->io[number], *((uint32_t *)&config));
     return 0;
 }
 
@@ -4923,11 +4924,17 @@ int fpioa_get_io_by_function(fpioa_function_t function) {
     return -1;
 }
 
+#include <driver/console.h>
 void fpioa_pin_init() {
+    kprintf("[FPIOA] Set SPI0 SCLK.\n");
     fpioa_set_function(27, FUNC_SPI0_SCLK);
+    kprintf("[FPIOA] Set SPI0 D0.\n");
     fpioa_set_function(28, FUNC_SPI0_D0);
+    kprintf("[FPIOA] Set SPI0 D1.\n");
     fpioa_set_function(26, FUNC_SPI0_D1);
+    kprintf("[FPIOA] Set GPIOHS 7.\n");
     fpioa_set_function(32, FUNC_GPIOHS7);
+    kprintf("[FPIOA] Set SPI0 SS3.\n");
     fpioa_set_function(29, FUNC_SPI0_SS3);
 #ifdef DEBUG
     printf("fpioa_pin_init\n");
@@ -4941,10 +4948,8 @@ void fpioa_pin_init() {
 
 int init_fpioa(dev_driver_t *drv) {
     kprintf("[FPIOA] FPIOA Start initialize.\n");
-    // Map fpioa hardware addr
-    mem_sysmap((void *)FPIOA_V, (void *)FPIOA, 0x1000, PTE_TYPE_RW);
-    flush_tlb_all();
     fpioa_pin_init();
+    kprintf("[FPIOA] FPIOA Finish initialize.\n");
     return 0;
 }
 
@@ -4954,9 +4959,9 @@ dev_driver_t fpioa_driver = {
 #ifdef PLATFORM_QEMU
     .loading_sequence = 0xFF,
 #else
-    .loading_sequence = 3,
+    .loading_sequence = 4,
 #endif
-    .dev_id       = 3,
+    .dev_id       = 0,
     .major_ver    = 0,
     .minor_ver    = 1,
     .private_data = NULL,

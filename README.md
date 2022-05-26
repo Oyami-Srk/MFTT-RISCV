@@ -20,8 +20,8 @@ What I've done:
 * execve (But only 1/3 to successfully run TvT)
 
 What I'm doing:
+* K210 Port (Use driver code from xv6-k210)
 * Syscalls for comp
 
 What I've not done:
 * Time managment
-* k210 port

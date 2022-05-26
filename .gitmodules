@@ -7,3 +7,6 @@
 [submodule "SBI/k210/rustsbi-k210"]
 	path = SBI/k210/rustsbi-k210
 	url = https://github.com/rustsbi/rustsbi-k210
+[submodule "tools/ktool"]
+	path = tools/ktool
+	url = https://github.com/loboris/ktool

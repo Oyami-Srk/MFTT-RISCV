@@ -33,8 +33,8 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
     } else {
         // cause by exception
 
-        if ((scause == 15 || scause == 13 || scause == 12) &&
-            stval < KERN_BASE) {
+        if ((scause == 15 || scause == 13 || scause == 12 || scause == 5) &&
+            stval < 0x80000000) {
             // page fault.
             if (do_pagefault(
                     (char *)stval,

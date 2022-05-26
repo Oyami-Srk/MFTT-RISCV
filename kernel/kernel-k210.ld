@@ -3,7 +3,7 @@ OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
 SECTIONS {
-    _KERN_BASE = 0x80200000;
+    _KERN_BASE = 0x80020000;
     . = _KERN_BASE;
 
     .text ALIGN(0x1000): {
@@ -37,9 +37,12 @@ SECTIONS {
     }
 
     .bss ALIGN(0x1000) : {
+        PROVIDE(__bss_start = .);
         *(.bss.stack)
         *(.bss .bss.*)
         *(.sbss .sbss.*)
+        *(.ebss .ebss.*)
+        PROVIDE(__bss_end = .);
     }
 
     _KERN_END = .;

@@ -223,7 +223,7 @@ int do_pagefault(char *caused_va, pde_t pde, bool from_kernel) {
     proc_t *proc = myproc();
     assert(proc->page_dir == pde,
            "PDE not identical to currently holding process.");
-    if ((uintptr_t)caused_va >= KERN_BASE) {
+    if ((uintptr_t)caused_va >= 0x80000000) {
         kprintf("not use page fault.");
         return -3;
     }

@@ -193,6 +193,7 @@ void init_fdt(struct fdt_header *header) {
             p               = PALIGN(p + strlen(str) + 1, 4);
             if (*str != '\0') {
                 prober_fp fp = NULL;
+                kprintf("[FDT] Detected Node: %s.\n", str);
                 if ((fp = get_prober_fp(str)) != NULL) {
                     p += fp(version, str, p, addr_cells, size_cells, strings);
                 } else {

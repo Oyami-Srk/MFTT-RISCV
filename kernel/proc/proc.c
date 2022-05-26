@@ -34,6 +34,8 @@ void setup_init_process() {
     char *process_stack_top = (char *)(PROC_STACK_BASE - stack_pages * PG_SIZE);
     map_pages(proc->page_dir, (void *)(process_stack_top), process_stack,
               PROC_STACK_SIZE, PTE_TYPE_RW, true, false);
+    flush_tlb_all();
+
     proc->trapframe.sp = (uintptr_t)PROC_STACK_BASE;
     proc->stack_bottom = (char *)PROC_STACK_BASE;
     proc->stack_top    = process_stack_top;

@@ -14,7 +14,11 @@
 #define DEV_BUFFERED_IO 5
 
 // FIXME: BAD HARD CODE
+#ifdef PLATFORM_QEMU
 #define USE_SOFT_INT_COMP 0
-#define HART_COUNT        2
+#else
+#define USE_SOFT_INT_COMP 1
+#endif
+#define HART_COUNT 2
 
 #endif // __CONFIGS_H__

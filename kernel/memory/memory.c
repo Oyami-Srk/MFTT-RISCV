@@ -130,6 +130,8 @@ size_t memory_available() {
 
 extern volatile char _KERN_END[];
 #define KERN_END (((void *)(_KERN_END)))
+extern volatile char _KERN_BASE[];
+#define KERN_BASE (((void *)(_KERN_BASE)))
 
 static int memory_fdt_prober(uint32_t version, const char *node_name,
                              const char *begin, uint32_t addr_cells,
@@ -179,6 +181,8 @@ static int memory_fdt_prober(uint32_t version, const char *node_name,
                 if (addr_cells >= 2)
                     mem_addr |= CPU_TO_FDT32(*(addr_base - 1)) << 32;
                 mem_size = CPU_TO_FDT32(*size_base);
+                // for k210 port, TODO: enable all memory
+                mem_size = 0x600000;
                 if (size_cells >= 2)
                     mem_size |= CPU_TO_FDT32(*(size_base - 1)) << 32;
                 kprintf("[FDT] Detected Memory @ 0x%x with Size 0x%x bytes.\n",

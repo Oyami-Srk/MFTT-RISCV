@@ -47,8 +47,6 @@ typedef union {
     pte_t raw;
 } pte_st;
 
-#define KERN_BASE 0x80200000 // Must keep same as kernel.ld
-
 #define PG_SIZE         4096
 #define PG_SHIFT        12
 #define PG_ROUNDUP(sz)  ((((uintptr_t)sz) + PG_SIZE - 1) & ~(PG_SIZE - 1))

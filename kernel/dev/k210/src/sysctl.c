@@ -314,6 +314,7 @@ int sysctl_dma_select(sysctl_dma_channel_t channel,
     return 0;
 }
 
+#if 0
 int sysctl_clock_get_threshold(sysctl_threshold_t which) {
     int threshold = 0;
 
@@ -895,3 +896,4 @@ uint32_t sysctl_clock_get_freq(sysctl_clock_t clock) {
     }
     return result;
 }
+#endif

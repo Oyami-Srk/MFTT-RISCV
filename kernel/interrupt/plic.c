@@ -16,8 +16,7 @@ static size_t plic_mem_size = 0;
 
 void init_plic() {
     assert(plic_pa != 0, "PLIC Controller not found.");
-    mem_sysmap((char *)(HARDWARE_VBASE + PLIC_BASE_OFFSET), plic_pa,
-               plic_mem_size, PTE_TYPE_RW);
+    mem_sysmap((char *)PLIC_VA, plic_pa, plic_mem_size, PTE_TYPE_RW);
     flush_tlb_all();
 
 #if !USE_SOFT_INT_COMP
@@ -50,10 +49,10 @@ void plic_end(int irq) {
     int context =
 #if USE_SOFT_INT_COMP
         // Machine context offset is 0
-        cpuid() * 2 + 0;
+        (int)cpuid() * 2 + 0;
 #else
         // Supervisor context offset is 1
-        cpuid() * 2 + 1; // NOLINT(cppcoreguidelines-narrowing-conversions)
+        (int)cpuid() * 2 + 1;
 #endif
     MEM_IO_WRITE(uint32_t,
                  PLIC_MISC_ADDR_FOR(context) + PLIC_MISC_CLAIM_COMPLETE, irq);
@@ -62,8 +61,7 @@ void plic_end(int irq) {
 int plic_register_irq(int irq) {
     kprintf("[PLIC] Register IRQ %d.\n", irq);
     // 1 is prio
-    MEM_IO_WRITE(uint32_t,
-                 HARDWARE_VBASE + PLIC_BASE_OFFSET + irq * sizeof(uint32_t), 1);
+    MEM_IO_WRITE(uint32_t, PLIC_VA + irq * sizeof(uint32_t), 1);
     // enable for each hart
     for (int hart = 0; hart < HART_COUNT; hart++) {
         int context;

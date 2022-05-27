@@ -188,6 +188,7 @@ int dmac_set_channel_param(dmac_channel_number_t channel_num, const void *src,
 
     int mem_type_src  = is_memory((uintptr_t)src),
         mem_type_dest = is_memory((uintptr_t)dest);
+
     dmac_transfer_flow_t flow_control;
     if (mem_type_src == 0 && mem_type_dest == 0) {
         flow_control = DMAC_PRF2PRF_DMA;
@@ -247,8 +248,8 @@ void dmac_init(void) {
     dmac_reset_u_t              dmac_reset;
 
     sysctl_clock_enable(SYSCTL_CLOCK_DMA);
-    // printf("[dmac_init] dma clk=%d\n",
-    // sysctl_clock_get_freq(SYSCTL_CLOCK_DMA));
+    kprintf("[DMAC] DMA Clock Rate: %d.\n",
+            sysctl_clock_get_freq(SYSCTL_CLOCK_DMA));
 
     dmac_reset.data      = readq(&dmac->reset);
     dmac_reset.reset.rst = 1;
@@ -329,6 +330,7 @@ void dmac_wait_idle(dmac_channel_number_t channel_num) {
 }
 
 static int dmac_intr() {
+    kprintf(".");
     dmac_chanel_interrupt_clear(DMAC_CHANNEL0);
     wakeup(dmac_chan);
     return 0;

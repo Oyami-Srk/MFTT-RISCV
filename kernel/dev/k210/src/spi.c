@@ -311,7 +311,6 @@ void spi_receive_data_normal_dma(dmac_channel_number_t dma_send_channel_num,
                                  const void *cmd_buff, uint64_t cmd_len,
                                  void *rx_buff, uint64_t rx_len) {
     // configASSERT(spi_num < SPI_DEVICE_MAX && spi_num != 2);
-
     if (cmd_len == 0)
         spi_set_tmod(spi_num, SPI_TMOD_RECV);
     else
@@ -339,6 +338,7 @@ void spi_receive_data_normal_dma(dmac_channel_number_t dma_send_channel_num,
     if (cmd_len == 0 && spi_get_frame_format(spi_num) == SPI_FF_STANDARD)
         spi[spi_num]->dr[0] = 0xffffffff;
     spi_handle->ser = 1U << chip_select;
+
     if (cmd_len)
         dmac_wait_done(dma_send_channel_num);
     dmac_wait_done(dma_receive_channel_num);
@@ -426,8 +426,8 @@ void spi_receive_data_standard_dma(
     uint64_t  v_cmd_len;
     switch (frame_width) {
     case SPI_TRANS_INT:
-        // write_cmd = kalloc();
-        write_cmd = (uint32_t *)kmalloc((cmd_len / 4) * sizeof(uint32_t));
+        write_cmd =
+            (uint32_t *)kmalloc((cmd_len / 4 + rx_len / 4) * sizeof(uint32_t));
         for (i = 0; i < cmd_len / 4; i++)
             write_cmd[i] = ((uint32_t *)cmd_buff)[i];
         read_buf   = &write_cmd[i];
@@ -435,7 +435,8 @@ void spi_receive_data_standard_dma(
         v_cmd_len  = cmd_len / 4;
         break;
     case SPI_TRANS_SHORT:
-        write_cmd = (uint32_t *)kmalloc((cmd_len / 2) * sizeof(uint32_t));
+        write_cmd =
+            (uint32_t *)kmalloc((cmd_len / 2 + rx_len / 4) * sizeof(uint32_t));
         for (i = 0; i < cmd_len / 2; i++)
             write_cmd[i] = ((uint16_t *)cmd_buff)[i];
         read_buf   = &write_cmd[i];
@@ -443,7 +444,7 @@ void spi_receive_data_standard_dma(
         v_cmd_len  = cmd_len / 2;
         break;
     default:
-        write_cmd = (uint32_t *)kmalloc((cmd_len) * sizeof(uint32_t));
+        write_cmd = (uint32_t *)kmalloc((cmd_len + rx_len) * sizeof(uint32_t));
         for (i = 0; i < cmd_len; i++)
             write_cmd[i] = cmd_buff[i];
         read_buf   = &write_cmd[i];
@@ -505,7 +506,8 @@ void spi_send_data_standard_dma(dmac_channel_number_t channel_num,
     int       i;
     switch (frame_width) {
     case SPI_TRANS_INT:
-        buf = (uint32_t *)kmalloc((cmd_len / 4) * sizeof(uint32_t));
+        buf =
+            (uint32_t *)kmalloc((cmd_len / 4 + tx_len / 4) * sizeof(uint32_t));
         for (i = 0; i < cmd_len / 4; i++)
             buf[i] = ((uint32_t *)cmd_buff)[i];
         for (i = 0; i < tx_len / 4; i++)
@@ -513,7 +515,8 @@ void spi_send_data_standard_dma(dmac_channel_number_t channel_num,
         v_send_len = (cmd_len + tx_len) / 4;
         break;
     case SPI_TRANS_SHORT:
-        buf = (uint32_t *)kmalloc((cmd_len / 2) * sizeof(uint32_t));
+        buf =
+            (uint32_t *)kmalloc((cmd_len / 2 + tx_len / 2) * sizeof(uint32_t));
         for (i = 0; i < cmd_len / 2; i++)
             buf[i] = ((uint16_t *)cmd_buff)[i];
         for (i = 0; i < tx_len / 2; i++)
@@ -521,7 +524,7 @@ void spi_send_data_standard_dma(dmac_channel_number_t channel_num,
         v_send_len = (cmd_len + tx_len) / 2;
         break;
     default:
-        buf = (uint32_t *)kmalloc((cmd_len) * sizeof(uint32_t));
+        buf = (uint32_t *)kmalloc((cmd_len + tx_len) * sizeof(uint32_t));
         for (i = 0; i < cmd_len; i++)
             buf[i] = cmd_buff[i];
         for (i = 0; i < tx_len; i++)

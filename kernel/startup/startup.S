@@ -6,9 +6,6 @@
 _start:
     /* Mask all interrupts */
     csrw sie, 0
-    /* Disable FPU */
-    li t0, 0x00006000
-    csrc sstatus, t0
 
     add t0, a0, 1    /* a0 = mhartid, set by SBI */
     slli t0, t0, 16  /* t0 = t0 << 16; */

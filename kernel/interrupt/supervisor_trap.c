@@ -87,8 +87,9 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
     uint64_t satp    = CSR_Read(satp);
 
     assert((sstatus & SSTATUS_SPP), "Supervisor trap must from kernel.");
+    /*
     assert((sstatus & SSTATUS_SIE) == 0,
-           "Trap triggered with interrupt enabled.");
+           "Trap triggered with interrupt enabled.");*/
 
     if (scause & XCAUSE_INT) {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);

@@ -483,6 +483,7 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
             for (uint32_t offset = 0; offset < 512;
                  offset += sizeof(union FAT32_DirEnt)) {
                 memcpy(&DirEnt, pBuf + offset, sizeof(union FAT32_DirEnt));
+                kprintf("=> %s\n", DirEnt.Name);
                 if (DirEnt.Name[0] == 0)
                     break;
                 if (DirEnt.Name[0] == 0xE5 || DirEnt.Name[0] == 0x05) {

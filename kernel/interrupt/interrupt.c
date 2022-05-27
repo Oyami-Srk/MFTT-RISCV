@@ -15,7 +15,6 @@ extern void timer_tick(); // timer.c
 static interrupt_handler_t int_handlers[MAX_INTERRUPT] = {0};
 
 void handle_interrupt(uint64_t cause) {
-    kprintf("Cause: %d.\n", cause);
     if (cause == 5) {
         // timer interrupt
         // 1. master core increase the tick
@@ -43,7 +42,6 @@ void handle_interrupt(uint64_t cause) {
         // according to priviliged 1.10, cause = 9 is Supervisor ext-int
 #endif
         int irq = plic_begin();
-        kprintf("IRQ: %d\n", irq);
         if (irq) {
             if (int_handlers[irq]) {
                 int _result = (int_handlers[irq])();

@@ -1,6 +1,7 @@
 cmake-build-debug
 .idea
 useful_notes
+build
 *.bin
 *.img
 tools/fs_contents/riscv64/

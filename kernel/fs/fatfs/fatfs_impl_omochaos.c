@@ -483,19 +483,18 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
             for (uint32_t offset = 0; offset < 512;
                  offset += sizeof(union FAT32_DirEnt)) {
                 memcpy(&DirEnt, pBuf + offset, sizeof(union FAT32_DirEnt));
-                kprintf("=> %s\n", DirEnt.Name);
                 if (DirEnt.Name[0] == 0)
                     break;
                 if (DirEnt.Name[0] == 0xE5 || DirEnt.Name[0] == 0x05) {
-                    goto free;
+                    continue;
                 }
                 if (DirEnt.Name[0] == 0x2E) {
-                    goto free;
+                    continue;
                 }
                 if (DirEnt.Attr == FS_ATTR_LONGNAME)
-                    goto free; // TODO: support long name
+                    continue; // TODO: support long name
                 if (DirEnt.Attr & ATTR_VOLUME_ID)
-                    goto free; // TODO: read it
+                    continue; // TODO: read it
                 char dname[12] = {[0 ... 11] = 0};
                 read_8_3_filename(DirEnt.Name, dname);
                 inode_t *inode = alloc_inode(dir->i_sb);
@@ -523,7 +522,6 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
                 // call callback
                 callback(dentry, data);
             }
-        free:
             bio_cache_release(buf);
         }
         dir_clus = get_next_clus_in_FAT(fs, dir_clus);

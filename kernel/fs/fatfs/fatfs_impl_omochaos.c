@@ -298,8 +298,6 @@ static inline uint32_t get_next_clus_in_FAT(struct FAT32_FileSystem *fs,
         fs->drv, (fs->FATstartSct + sector_of_clus_in_fat) * fs->BytesPerSec);
     char    *pBuf      = buf->data;
     uint32_t next_clus = ((uint32_t *)pBuf)[clus - 128 * sector_of_clus_in_fat];
-    if (buf->reference == 1)
-        bio_cache_pin(buf);
     bio_cache_release(buf);
     return next_clus & 0x0FFFFFFF;
 }
@@ -488,15 +486,15 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
                 if (DirEnt.Name[0] == 0)
                     break;
                 if (DirEnt.Name[0] == 0xE5 || DirEnt.Name[0] == 0x05) {
-                    continue;
+                    goto free;
                 }
                 if (DirEnt.Name[0] == 0x2E) {
-                    continue;
+                    goto free;
                 }
                 if (DirEnt.Attr == FS_ATTR_LONGNAME)
-                    continue; // TODO: support long name
+                    goto free; // TODO: support long name
                 if (DirEnt.Attr & ATTR_VOLUME_ID)
-                    continue; // TODO: read it
+                    goto free; // TODO: read it
                 char dname[12] = {[0 ... 11] = 0};
                 read_8_3_filename(DirEnt.Name, dname);
                 inode_t *inode = alloc_inode(dir->i_sb);
@@ -524,6 +522,8 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
                 // call callback
                 callback(dentry, data);
             }
+        free:
+            bio_cache_release(buf);
         }
         dir_clus = get_next_clus_in_FAT(fs, dir_clus);
         if (dir_clus >= 0xFFFFFF8 && dir_clus <= 0xFFFFFFF)

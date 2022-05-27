@@ -16,6 +16,7 @@
 
 typedef struct __buffered_io_t {
     bool     valid;
+    bool     dirty;
     uint16_t dev[2];
     uint64_t addr;
     char     data[BUFFER_SIZE];

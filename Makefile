@@ -117,9 +117,9 @@ ${BUILD_DIR}/init.o: ${BUILD_DIR}/init.elf ${INIT_ROOT}/package.S
 # SBI Build
 
 ${BUILD_DIR}/SBI.elf:
-	cd ${PROJ_ROOT}/SBI/${OS_PLATFORM}/rustsbi-${OS_PLATFORM}/ && \
-		cargo make --release && \
-		cp target/riscv64imac-unknown-none-elf/release/rustsbi-${OS_PLATFORM} \
+	cd ${PROJ_ROOT}/SBI/${OS_PLATFORM}/rustsbi-${OS_PLATFORM}/rustsbi-${OS_PLATFORM} && \
+		cargo build --package rustsbi-k210 --target riscv64imac-unknown-none-elf --release && \
+		cp ../target/riscv64imac-unknown-none-elf/release/rustsbi-${OS_PLATFORM} \
 		$@
 	cd ${PROJ_ROOT}
 

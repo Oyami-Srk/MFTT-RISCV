@@ -13,7 +13,7 @@ endif
 
 PROJ_ROOT:=$(shell pwd)
 BUILD_DIR:=${PROJ_ROOT}/build
-TOOLCHAIN_PREFIX:=riscv64-elf-
+TOOLCHAIN_PREFIX:=riscv64-unknown-elf-
 
 CC:=${TOOLCHAIN_PREFIX}gcc
 LD:=${TOOLCHAIN_PREFIX}ld

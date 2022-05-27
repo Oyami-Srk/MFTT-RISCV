@@ -70,12 +70,20 @@ int main() {
                                buf);
                         close(disk_fd);
                     }
-                    printf("test execve.\n");
-                    const char *argv[] = {"arg1", "pworld", "helloi", "arg4",
-                                          NULL};
-                    const char *env[]  = {"env1", "env2", NULL};
-                    execve("/mnt/PROG1", (char *const *)argv,
-                           (char *const *)env);
+                    printf("test fork and execve.\n");
+                    int ret = fork();
+                    if (ret == 0) {
+                        printf("I'm child, doing execve right now.\n");
+                        const char *argv[] = {"arg1", "pworld", "helloi",
+                                              "arg4", NULL};
+                        const char *env[]  = {"env1", "env2", NULL};
+                        execve("/mnt/PROG1", (char *const *)argv,
+                               (char *const *)env);
+                    } else if (ret > 0) {
+                        printf("I'm parent, child pid is %d.\n", ret);
+                    } else {
+                        printf("Error code: %d.\n", ret);
+                    }
                 }
             } else
                 printf("Cannot create mnt dir");

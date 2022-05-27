@@ -33,6 +33,8 @@
 // that have the high bit set.
 #define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
 
+#define PAGING_DEBUG 0
+
 _Static_assert(sizeof(pte_st) == sizeof(pte_t), "PTE Definination wrong.");
 
 extern struct memory_info_t memory_info;
@@ -80,6 +82,10 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
         pte->fields.G             = global;
         // *pte = PA2PTE(pa) | perm | PTE_V;
         // increase_page_ref(&memory_info, pa);
+#if PAGING_DEBUG
+        if (a <= 0x80000000)
+            kprintf("[MEM] Map 0x%lx => 0x%lx on PDE 0x%lx.\n", a, pa, pte);
+#endif
         if (a == last)
             break;
         a += PG_SIZE;
@@ -106,7 +112,10 @@ void unmap_pages(pde_t page_dir, void *va, size_t size, int do_free) {
         if (pte->fields.Type == 0)
             kpanic("vmunmap: not a leaf");
         char *pa = (char *)((uint64_t)pte->fields.PhyPageNumber << PG_SHIFT);
-        // kprintf("unmap 0x%lx => 0x%lx, pte addr: 0x%lx.\n", a, pa, pte);
+#if PAGING_DEBUG
+        if (a <= 0x80000000)
+            kprintf("[MEM] Unmap 0x%lx => 0x%lx on PDE 0x%lx.\n", a, pa, pte);
+#endif
         int ref = decrease_page_ref(&memory_info, pa);
         if (do_free && ref == 0) {
             page_free(pa, 1);
@@ -184,7 +193,7 @@ pde_t alloc_page_dir() {
 
 int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
     // debug
-    // kprintf("do vm copy at va 0x%lx ~ 0x%lx.\n", start, end);
+    kprintf("do vm copy at va 0x%lx ~ 0x%lx.\n", start, end);
 
     char   *a;
     char   *va     = (char *)PG_ROUNDDOWN(start);

@@ -169,7 +169,7 @@ ADD_CUSTOM_COMMAND(OUTPUT ${BIN}
         )
 # End of generation
 
-# Flush
+# Flash
 IF ("${OS_PLATFORM}" STREQUAL "k210")
     SET(KFLASH ${PROJECT_SOURCE_DIR}/tools/scripts/kflash.py)
     ADD_CUSTOM_TARGET(Flash-K210

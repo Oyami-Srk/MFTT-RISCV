@@ -49,6 +49,8 @@ buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr) {
             }
         }
         if (todelete) {
+            if (todelete->dirty)
+                bio_cache_flush(todelete);
             list_del(&todelete->list);
             kfree((char *)todelete);
         } else {
@@ -62,6 +64,7 @@ buffered_io_t *bio_cache_get(uint16_t dev, uint64_t addr) {
     memset(buffer, 0, sizeof(buffered_io_t));
     buffer->dev[0] = dev;
     buffer->addr   = addr;
+    buffer->dirty  = false;
     sleeplock_init(&buffer->lock);
     buffer->reference = 1;
     buffer->valid     = false;
@@ -91,7 +94,8 @@ void bio_cache_flush(buffered_io_t *buf) {
         kpanic("Not holding buffered io lock");
     if (!bio_cache.dev_rw[buf->dev[0]])
         kpanic("No dev rw function to dev %d.", buf->dev[0]);
-    bio_cache.dev_rw[buf->dev[0]](buf->addr, buf->data, BUFFER_SIZE, 1);
+    if (buf->dirty)
+        bio_cache.dev_rw[buf->dev[0]](buf->addr, buf->data, BUFFER_SIZE, 1);
 }
 
 // release buffer, no flush here

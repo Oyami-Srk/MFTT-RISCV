@@ -37,12 +37,12 @@ _Noreturn void kpanic_proto(const char *s_fn, const char *b_fn, const int line,
     print_str_nolock(
         "\n\n==================================================\n");
     print_str_nolock("[PANIC] ");
-    int     i;
-    char    buf[MAX_CONSOLE_BUF];
-    va_list arg = (va_list)((char *)(&fmt) + 4);
-    i           = vsprintf(buf, fmt, arg);
-    buf[i]      = 0;
-    char *s     = buf;
+    int         i;
+    static char buf[MAX_CONSOLE_BUF];
+    va_list     arg = (va_list)((char *)(&fmt) + 4);
+    i               = vsprintf(buf, fmt, arg);
+    buf[i]          = 0;
+    char *s         = buf;
     while (*s != '\0')
         SBI_putchar(*(s++));
     print_str_nolock("\nAt file: ");

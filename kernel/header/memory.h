@@ -10,6 +10,16 @@
 #include <lib/sys/spinlock.h>
 #include <types.h>
 
+extern volatile char _KERN_END[];
+#define KERN_END (((void *)(_KERN_END)))
+extern volatile char _KERN_BASE[];
+#define KERN_BASE (((void *)(_KERN_BASE)))
+
+extern volatile char __start_kernel_code[];
+#define KERN_CODE_START (((void *)(__start_kernel_code)))
+extern volatile char __end_kernel_code[];
+#define KERN_CODE_END (((void *)(__end_kernel_code)))
+
 /* Built-in memory maps */
 #define HARDWARE_VBASE 0xC0000000
 

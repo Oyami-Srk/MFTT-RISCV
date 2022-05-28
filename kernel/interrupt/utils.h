@@ -9,6 +9,12 @@
 #include <riscv.h>
 #include <trap.h>
 
+#ifdef PLATFORM_QEMU
+#define COULD_BE_PAGEFAULT(x) ((x) == 15 || (x) == 13 || (x) == 12 || (x) == 5)
+#else
+#define COULD_BE_PAGEFAULT(x) ((x) == 7 || (x) == 5 || (x) == 1)
+#endif
+
 // 其实用vector命名不太正确，因为这里用DIRECT MODE不是向量表模式
 // 沿用OmochaOS的命名习惯
 // FIXME: rename
@@ -29,5 +35,8 @@ static inline void set_interrupt_to_kernel() {
 static inline void set_interrupt_to_user() {
     set_interrupt_to((uintptr_t)user_interrupt_vector);
 }
+
+void exception_panic(uint64_t scause, uint64_t stval, uint64_t sepc,
+                     uint64_t sstatus, struct trap_context *trapframe);
 
 #endif // __TRAP_UTILS_H__

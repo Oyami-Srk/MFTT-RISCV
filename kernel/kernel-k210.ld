@@ -7,9 +7,10 @@ SECTIONS {
     . = _KERN_BASE;
 
     .text ALIGN(0x1000): {
+        PROVIDE(__start_kernel_code = .);
         *(.text.startup)
-        . = ALIGN(4K);
         *(.text .stub .text.* .gnu.linkonce.t.*)
+        PROVIDE(__end_kernel_code = .);
     }
 
     .rodata ALIGN(0x1000) : {

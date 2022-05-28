@@ -128,11 +128,6 @@ size_t memory_available() {
 
 #include <lib/sys/fdt.h>
 
-extern volatile char _KERN_END[];
-#define KERN_END (((void *)(_KERN_END)))
-extern volatile char _KERN_BASE[];
-#define KERN_BASE (((void *)(_KERN_BASE)))
-
 static int memory_fdt_prober(uint32_t version, const char *node_name,
                              const char *begin, uint32_t addr_cells,
                              uint32_t size_cells, const char *strings) {

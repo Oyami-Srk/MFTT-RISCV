@@ -95,6 +95,16 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
             itoa(m, q, 16);
             arg += sizeof(int *); // pointer size are the same
             break;
+        case 'p':
+            if (longint)
+                m = *((long long *)arg);
+            else
+                m = *((int *)arg);
+            *(q++) = '0';
+            *(q++) = 'x';
+            itoa(m, q, 16);
+            arg += sizeof(int *); // pointer size are the same
+            break;
         case 'd':
             if (longint)
                 m = *((long long *)arg);

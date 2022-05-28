@@ -33,8 +33,7 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
     } else {
         // cause by exception
 
-        if ((scause == 15 || scause == 13 || scause == 12 || scause == 5) &&
-            stval < 0x80000000) {
+        if (COULD_BE_PAGEFAULT(scause) && stval < 0x80000000) {
             // page fault.
             if (do_pagefault(
                     (char *)stval,
@@ -43,8 +42,10 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
                 kpanic("do page fault failed.\n");
             }
         } else {
+            exception_panic(scause, stval, sepc, sstatus, &proc->trapframe);
             while (1)
                 ;
+            SBI_ext_srst();
         }
     }
     user_trap_return();

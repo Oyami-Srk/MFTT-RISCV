@@ -61,6 +61,6 @@ int do_fork(proc_t *parent) {
     spinlock_release(&child->lock);
     spinlock_release(&parent->lock);
     // parent yield
-    //    yield();
+    yield();
     return child->pid;
 }

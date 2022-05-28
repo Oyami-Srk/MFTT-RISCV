@@ -4,6 +4,10 @@
 # This Makefile is not meant to be maintance
 
 OS_PLATFORM:=k210
+# OS_PLATFORM:=qemu
+
+FLASH_USB_PORT?=/dev/ttyUSB0
+FLASH_BAUDRATE:=3000000
 
 ifeq ($(OS_PLATFORM), qemu)
 	BIN_OFFSET:=2097152
@@ -11,7 +15,7 @@ else
 	BIN_OFFSET:=131072
 endif
 
-ifeq (, $(shell which riscv64-unknown-elf))
+ifeq (, $(shell which riscv64-unknown-elf 2>/dev/null))
 	TOOLCHAIN_PREFIX:=riscv64-elf-
 else
 	TOOLCHAIN_PREFIX:=riscv64-unknown-elf-
@@ -49,7 +53,7 @@ all: prerequirement os.bin
 
 .PHONY: prerequirement
 prerequirement:
-	mkdir -p ${BUILD_DIR}
+	@mkdir -p ${BUILD_DIR}
 
 .PHONY: clean
 clean:
@@ -82,6 +86,7 @@ ${BUILD_DIR}/kernel.elf: ${BUILD_DIR}/init.o ${KERNEL_OBJS}
 	@mkdir -p $(dir $@)
 	@echo "Build kernel.elf"
 	${LD} ${LD_FLAGS_KERNEL} -o $@ $^
+	${OBJDUMP} -S $@ > $@.disasm
 
 # Userlib builds
 USERLIB_ROOT:=${PROJ_ROOT}/userlib
@@ -136,3 +141,7 @@ os.bin: ${BUILD_DIR}/kernel.bin ${BUILD_DIR}/SBI.bin
 	dd conv=notrunc bs=1 if=${BUILD_DIR}/SBI.bin of=$@
 	dd conv=notrunc bs=1 if=${BUILD_DIR}/kernel.bin of=$@ seek=${BIN_OFFSET}
 
+ifeq (${OS_PLATFORM}, k210)
+flash: os.bin
+	${PROJ_ROOT}/tools/ktool/ktool.py -p ${FLASH_USB_PORT} -b ${FLASH_BAUDRATE} -t os.bin
+endif

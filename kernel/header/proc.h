@@ -82,7 +82,7 @@ struct task_context {
 #define PROC_INTERRUPT 0xFFFFFFFF
 
 #define PROC_STACK_SIZE  8192
-#define PROG_KSTACK_SIZE (1024 * 64)
+#define PROG_KSTACK_SIZE (1024 * 8)
 #define PROC_STACK_BASE  0x80000000
 
 #define PROC_NAME_SIZE 16

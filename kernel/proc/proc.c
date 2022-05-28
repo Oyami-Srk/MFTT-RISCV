@@ -47,9 +47,10 @@ void setup_init_process() {
 
 void init_proc() {
     spinlock_acquire(&os_env.proc_lock);
+    /*
     for (uint64_t i = 0; i < MAX_PROC; i++) {
         spinlock_init(&os_env.proc[i].lock);
-    }
+    } */
     // leave proc 0 alone
     set_bit(os_env.proc_bitmap, 0);
     os_env.proc_count++;
@@ -72,9 +73,11 @@ proc_t *proc_alloc() {
         // kfree(proc);
         return NULL;
     }
-    proc = &os_env.proc[pid];
-    os_env.proc_count++;
+    // proc = &os_env.proc[pid];
+    proc = (proc_t *)kmalloc(sizeof(proc_t));
     spinlock_init(&proc->lock);
+    os_env.proc_count++;
+    list_add(&proc->proc_list, &os_env.procs);
     spinlock_acquire(&proc->lock);
     spinlock_release(&os_env.proc_lock);
     proc->pid = pid;
@@ -88,7 +91,7 @@ proc_t *proc_alloc() {
     proc->page_dir = alloc_page_dir();
     if (!proc->page_dir) {
         spinlock_release(&proc->lock);
-        return NULL;
+        return NULL; // TODO: clean up
     }
     // open 0,1,2 all to /dev/tty
     dentry_t *dentry = vfs_get_dentry("/dev/tty", NULL);
@@ -136,8 +139,8 @@ void proc_free(proc_t *proc, bool keep) {
 
 // Return current CPU process.
 proc_t *myproc() {
-    trap_push_off();
+    // trap_push_off();
     proc_t *p = mycpu()->proc;
-    trap_pop_off();
+    // trap_pop_off();
     return p;
 }

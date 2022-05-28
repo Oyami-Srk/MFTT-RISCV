@@ -359,6 +359,46 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_gettimeofday]= NULL,
     [SYS_nanosleep]= NULL,
 };
+
+
+static const char* syscall_names[] = {
+    [SYS_ticks] = "SYS_ticks",
+    [SYS_print] = "SYS_print",
+    [SYS_sleep] = "SYS_sleep",
+    [SYS_test] = "SYS_test", // inside test.c, remove when stable
+
+    [SYS_openat] = "SYS_openat",
+    [SYS_close] = "SYS_close",
+    [SYS_write] = "SYS_write",
+    [SYS_read] = "SYS_read",
+    [SYS_lseek] = "SYS_lseek",
+    [SYS_getcwd] = "SYS_getcwd",
+    [SYS_pipe2] = "SYS_pipe2",
+    [SYS_dup] = "SYS_dup",
+    [SYS_dup3] = "SYS_dup3",
+    [SYS_chdir] = "SYS_chdir",
+    [SYS_getdents64] = "SYS_getdents64",
+    [SYS_linkat] = "SYS_linkat",
+    [SYS_unlinkat] = "SYS_unlinkat",
+    [SYS_mkdirat] = "SYS_mkdirat",
+    [SYS_umount2] = "SYS_umount2",
+    [SYS_mount] = "SYS_mount",
+    [SYS_fstat] = "SYS_fstat",
+    [SYS_clone] = "SYS_clone",
+    [SYS_execve] = "SYS_execve",
+    [SYS_wait4] = "SYS_wait4",
+    [SYS_exit] = "SYS_exit",
+    [SYS_getppid] = "SYS_getppid",
+    [SYS_getpid] = "SYS_getpid",
+    [SYS_brk] = "SYS_brk",
+    [SYS_munmap] = "SYS_munmap",
+    [SYS_mmap] = "SYS_mmap",
+    [SYS_times] = "SYS_times",
+    [SYS_uname] = "SYS_uname",
+    [SYS_sched_yield] = "SYS_sched_yield",
+    [SYS_gettimeofday] = "SYS_gettimeofday",
+    [SYS_nanosleep] = "SYS_nanosleep",
+};
 // clang-format on
 
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))
@@ -377,6 +417,7 @@ void do_syscall(struct trap_context *trapframe) {
         return;
     }
     // TODO: strace
+    kprintf("========> %s\n", syscall_names[syscall_id]);
     sysret_t ret  = syscall_table[syscall_id](trapframe);
     trapframe->a0 = ret;
 }

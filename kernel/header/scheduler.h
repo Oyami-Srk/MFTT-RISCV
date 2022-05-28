@@ -12,7 +12,8 @@
 // must lock for access.
 typedef struct {
     spinlock_t lock;
-    pid_t      last_scheduled_pid;
+    // pid_t      last_scheduled_pid;
+    proc_t *last_scheduled_proc;
 } scheduler_data_t;
 
 // Return process to be scheduled

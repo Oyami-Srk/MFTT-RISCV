@@ -23,9 +23,13 @@ struct __cpu_t {
 };
 typedef struct __cpu_t cpu_t;
 
+#define ENV_BEGIN_GUARD 0x20010125
+#define ENV_END_GUARD   0xC0DEBABE
+
 struct __env_t {
+    uint64_t begin_gaurd;
     /* CPUs */
-    cpu_t cpus[MAX_CPUS];
+    cpu_t cpus[MAX_CPUS] __attribute__((aligned(8)));
     /* Timer */
     uint64_t   ticks;
     spinlock_t ticks_lock;
@@ -33,11 +37,12 @@ struct __env_t {
     // TODO: consider move memory_info to here
     pde_t       kernel_pagedir;
     uint64_t    kernel_satp;
+    char       *kernel_boot_stack;
+    char       *kernel_boot_stack_top;
     list_head_t mem_sysmaps;
     /* Process */
-    // TODO: make process table dynamicly allocated and increase.
-    // proc_t *proc[MAX_PROC];
-    proc_t           proc[MAX_PROC];
+    list_head_t procs;
+    // proc_t           proc[MAX_PROC];
     size_t           proc_count;
     bitset_t         proc_bitmap[BITSET_ARRAY_SIZE_FOR(MAX_PROC)];
     spinlock_t       proc_lock;
@@ -46,6 +51,8 @@ struct __env_t {
     /* Device */
     list_head_t driver_list_head;
     /* Interrupt */
+
+    uint64_t end_gaurd;
 } __attribute__((aligned(16)));
 typedef struct __env_t env_t;
 

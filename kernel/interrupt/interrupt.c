@@ -21,7 +21,7 @@ void handle_interrupt(uint64_t cause) {
         if (cpuid() == 0)
             timer_tick();
         // 2. set next timer.
-        SBI_set_timer(cpu_cycle() + 7800000);
+        SBI_set_timer(cpu_cycle() + TIMER_COUNTER);
         // 3. yield cpu for schelder running if there is any process.
         if (myproc() && myproc()->status & PROC_STATUS_RUNNING) {
             spinlock_acquire(&myproc()->lock);

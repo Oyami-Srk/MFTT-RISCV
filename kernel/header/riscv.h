@@ -27,16 +27,28 @@ static ALWAYS_INLINE inline uint64_t r_tp() {
 #define CSR_RWAND(reg, value) CSR_Write(reg, CSR_Read(reg) & (value))
 
 // Supervisor Status Register, sstatus
-#define SSTATUS_SPP  (1L << 8) // Previous mode, 1=Supervisor, 0=User
-#define SSTATUS_SPIE (1L << 5) // Supervisor Previous Interrupt Enable
-#define SSTATUS_UPIE (1L << 4) // User Previous Interrupt Enable
-#define SSTATUS_SIE  (1L << 1) // Supervisor Interrupt Enable
-#define SSTATUS_UIE  (1L << 0) // User Interrupt Enable
+#define SSTATUS_UIE      (1L << 0) // User Interrupt Enable
+#define SSTATUS_SIE      (1L << 1) // Supervisor Interrupt Enable
+#define SSTATUS_UPIE     (1L << 4) // User Previous Interrupt Enable
+#define SSTATUS_SPIE     (1L << 5) // Supervisor Previous Interrupt Enable
+#define SSTATUS_SPP      (1L << 8) // Previous mode, 1=Supervisor, 0=User
+#define SSTATUS_FS0      (1L << 13)
+#define SSTATUS_FS1      (1L << 14)
+#define SSTATUS_FS_SHIFT 13
+#define SSTATUS_XS0      (1L << 15)
+#define SSTATUS_XS1      (1L << 16)
+#define SSTATUS_XS_SHIFT 15
 #ifdef PLATFORM_QEMU
-#define SSTATUS_SUM (1L << 18) // User memory accessable, for 1.10+
+#define SSTATUS_SUM       (1L << 18) // User memory accessable, for 1.10+
+#define SSTATUS_MXR       (1L << 19)
+#define SSTATUS_UXL0      (1L << 32)
+#define SSTATUS_UXL1      (1L << 33)
+#define SSTATUS_UXL_SHIFT 32
 #else
 #define SSTATUS_SUM (0L << 18) // User memory accessable, for 1.9 (k210)
+#define SSTATUS_PUM (1L << 18) // User memory accessable, for 1.9 (k210)
 #endif
+#define SSTATUS_SD (1L << 63)
 
 // Supervisor Interrupt Enable
 #define SIE_SEIE (1L << 9) // external
@@ -65,11 +77,11 @@ static inline uint64_t cpu_cycle() {
 }
 #include <lib/sys/SBI.h>
 // Enable/Disable trap(interrupt)
-static inline void enable_trap() {
+static ALWAYS_INLINE inline void enable_trap() {
     CSR_Write(sstatus, CSR_Read(sstatus) | SSTATUS_SIE);
 }
 
-static inline void disable_trap() {
+static ALWAYS_INLINE inline void disable_trap() {
     CSR_Write(sstatus, CSR_Read(sstatus) & ~SSTATUS_SIE);
 }
 

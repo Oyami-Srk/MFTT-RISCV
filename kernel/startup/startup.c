@@ -29,10 +29,10 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
     set_cpuid(hartid);
     if (cpuid() == 0) {
         clear_bss();
-        kprintf("-*-*-*-*-*-*-*-*-*-*-*-*- My First Touch To RISC-V Starts "
-                "Here... -*-*-*-*-*-*-*-*-*-*-*-*-\n");
-
-        kprintf("Size of proc: %d.\n", sizeof(proc_t));
+        kprintf("-*-*-*-*-*-*-*-*-*-*- My First Touch To RISC-V Starts "
+                "Here... -*-*-*-*-*-*-*-*-*-*-\n");
+        kprintf("Kernel code from %lp to %lp.\n", KERN_CODE_START,
+                KERN_CODE_END);
         init_env();
         init_trap();
 

@@ -52,7 +52,7 @@ typedef struct __env_t env_t;
 // TODO: I hate global value
 extern env_t os_env; // Inside environment.c
 
-static inline cpu_t *mycpu() { return &os_env.cpus[cpuid()]; }
+static ALWAYS_INLINE inline cpu_t *mycpu() { return &os_env.cpus[cpuid()]; }
 
 void init_env();
 

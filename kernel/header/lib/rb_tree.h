@@ -7,11 +7,12 @@
 
 #include <types.h>
 
-struct _rb_node {
-    uint64_t key;
-    uint64_t parent_and_color;
 #define RB_BLACK 0
 #define RB_RED   1
+
+struct _rb_node {
+    uint64_t         key;
+    uint64_t         parent_and_color;
     struct _rb_node *L;
     struct _rb_node *R;
 } __attribute__((aligned(16)));

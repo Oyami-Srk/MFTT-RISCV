@@ -1,6 +1,7 @@
 #include <lib/rb_tree.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
+#include <riscv.h>
 
 #define PARENT_MASK 0xFFFFFFFFFFFFFFFEl
 #define COLOR_MASK  0x1l
@@ -67,7 +68,7 @@ rb_node *rb_pred(rb_node *n) {
     }
 }
 
-static void rb_rotate_left(rb_tree *tree, rb_node *node) {
+static ALWAYS_INLINE inline void rb_rotate_left(rb_tree *tree, rb_node *node) {
     rb_node *right  = node->R;
     rb_node *parent = GET_PARENT(node);
 

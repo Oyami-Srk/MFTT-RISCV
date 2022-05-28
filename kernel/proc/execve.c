@@ -134,6 +134,13 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
     // close file
     vfs_close(f);
 
+    // reopen stdio
+    dentry_t *stdio_dentry = vfs_get_dentry("/dev/tty", NULL);
+    file_t   *file         = vfs_open(stdio_dentry, 0);
+    old->files[0]          = file;
+    old->files[1]          = file;
+    old->files[2]          = file;
+
     // let it go
     old->status = PROC_STATUS_READY | PROC_STATUS_NORMAL;
 

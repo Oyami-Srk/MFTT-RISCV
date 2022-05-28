@@ -21,5 +21,7 @@
 #define USE_SOFT_INT_COMP 1
 #endif
 #define HART_COUNT 2
+// #define TIMER_COUNTER 7800000
+#define TIMER_COUNTER 10000
 
 #endif // __CONFIGS_H__

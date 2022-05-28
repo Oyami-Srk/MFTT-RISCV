@@ -75,6 +75,12 @@ static inline uint64_t cpu_cycle() {
     asm volatile("rdtime %0" : "=r"(x));
     return x;
 }
+
+static inline uintptr_t get_sp(void) {
+    volatile uint64_t var = 0;
+    return ((uintptr_t)&var + sizeof(uint64_t));
+}
+
 #include <lib/sys/SBI.h>
 // Enable/Disable trap(interrupt)
 static ALWAYS_INLINE inline void enable_trap() {

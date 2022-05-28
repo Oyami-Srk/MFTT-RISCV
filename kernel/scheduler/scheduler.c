@@ -18,6 +18,7 @@ proc_t *scheduler(scheduler_data_t *data) {
     // 锁定调度器数据
     spinlock_acquire(&data->lock);
 
+    /*
     for (proc_t *proc = &os_env.proc[data->last_scheduled_pid + 1];
          proc < &os_env.proc[os_env.proc_count]; proc++) {
         spinlock_acquire(&proc->lock);
@@ -42,6 +43,35 @@ proc_t *scheduler(scheduler_data_t *data) {
             goto ret;
         }
         spinlock_release(&proc->lock);
+    } */
+    if (data->last_scheduled_proc) {
+        list_foreach_entry(&data->last_scheduled_proc->proc_list, proc_t,
+                           proc_list, proc) {
+            spinlock_acquire(&proc->lock);
+            if (((proc->status & PROC_RUNNABLE) == PROC_RUNNABLE) &&
+                (proc->status & PROC_STATUS_RUNNING) == 0) {
+                // Normal ready but not running, Could be scheduled
+                ret_proc                  = proc; // with lock
+                data->last_scheduled_proc = proc;
+                goto ret;
+            }
+            spinlock_release(&proc->lock);
+            if (proc->proc_list.next == &os_env.procs)
+                break;
+        }
+    }
+    list_foreach_entry(&os_env.procs, proc_t, proc_list, proc) {
+        spinlock_acquire(&proc->lock);
+        if (((proc->status & PROC_RUNNABLE) == PROC_RUNNABLE) &&
+            (proc->status & PROC_STATUS_RUNNING) == 0) {
+            // Normal ready but not running, Could be scheduled
+            ret_proc                  = proc; // with lock
+            data->last_scheduled_proc = proc;
+            goto ret;
+        }
+        spinlock_release(&proc->lock);
+        if (proc == data->last_scheduled_proc)
+            break;
     }
 ret:
     spinlock_release(&data->lock);

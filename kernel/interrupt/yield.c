@@ -8,11 +8,21 @@
 #include <riscv.h>
 #include <trap.h>
 
-void switch_to_scheduler() {
-    bool trap_enabled = mycpu()->trap_enabled;
-    assert(mycpu()->proc, "Proc must be valid.");
-    context_switch(&mycpu()->proc->kernel_task_context, &mycpu()->context);
-    mycpu()->trap_enabled = trap_enabled;
-}
+void yield() {
+    int    my_cpuid     = (int)cpuid();
+    cpu_t *cpu          = &os_env.cpus[my_cpuid];
+    bool   trap_enabled = cpu->trap_enabled;
+    //    bool trap_enabled = mycpu()->trap_enabled;
+    assert(cpu->proc, "Proc must be valid.");
+    struct task_context *old = &cpu->proc->kernel_task_context;
+    struct task_context *new = &cpu->context;
+    assert(old, "Old context null.");
+    assert(new, "New context null.");
 
-void yield() { switch_to_scheduler(); }
+    // context_switch(&cpu->proc->kernel_task_context, &cpu->context);
+    context_switch(old, new);
+
+    my_cpuid          = (int)cpuid();
+    cpu               = &os_env.cpus[my_cpuid];
+    cpu->trap_enabled = trap_enabled;
+}

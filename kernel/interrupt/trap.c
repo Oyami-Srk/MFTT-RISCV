@@ -1,4 +1,5 @@
 #include "./utils.h"
+#include <configs.h>
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>
@@ -13,24 +14,28 @@ void init_trap() {
     set_interrupt_to_kernel();
     enable_trap();
     CSR_RWOR(sie, SIE_SEIE | SIE_SSIE | SIE_STIE);
-    SBI_set_timer(cpu_cycle() + 7800000);
+    SBI_set_timer(cpu_cycle() + TIMER_COUNTER);
 }
 
 void trap_push_off() {
     // Ensure we don't active interrupt if cpu not intended to enable it
     bool previous_status_of_sie = CSR_Read(sstatus) & SSTATUS_SIE;
     disable_trap();
-    if (mycpu()->trap_off_depth == 0)
-        mycpu()->trap_enabled = previous_status_of_sie;
-    mycpu()->trap_off_depth++;
+    int    my_cpuid = (int)cpuid();
+    cpu_t *cpu      = &os_env.cpus[my_cpuid];
+    if (cpu->trap_off_depth == 0)
+        cpu->trap_enabled = previous_status_of_sie;
+    cpu->trap_off_depth++;
 }
 
 void trap_pop_off() {
     assert((CSR_Read(sstatus) & SSTATUS_SIE) == 0,
            "Want pop interrupt but already enabled it.");
-    assert(mycpu()->trap_off_depth, "No need to pop.");
-    mycpu()->trap_off_depth--;
-    if (mycpu()->trap_off_depth == 0 && mycpu()->trap_enabled)
+    int    my_cpuid = (int)cpuid();
+    cpu_t *cpu      = &os_env.cpus[my_cpuid];
+    assert(cpu->trap_off_depth, "No need to pop.");
+    cpu->trap_off_depth--;
+    if (cpu->trap_off_depth == 0 && mycpu()->trap_enabled)
         enable_trap();
 }
 
@@ -177,6 +182,11 @@ void exception_panic(uint64_t scause, uint64_t stval, uint64_t sepc,
     printf_nolock(" sepc: %18lp\tstval: %18lp\n", sepc, stval);
     dump_trapframe(trapframe);
     printf_nolock("KERN_BASE: %lp\tKERN_END: %lp\n", KERN_BASE, KERN_END);
+    printf_nolock("Kernel Page Dir: %p\n", os_env.kernel_pagedir);
+    printf_nolock("Kernel Stack: %p ~ %p\nKernel Code: %p ~ %p",
+                  os_env.kernel_boot_stack, os_env.kernel_boot_stack_top,
+                  KERN_CODE_START, KERN_CODE_END);
+    printf_nolock("Env Guard: %p, %p\n", os_env.begin_gaurd, os_env.end_gaurd);
     printf_nolock("\n================================================\n\n",
                   cpuid());
     // release lock

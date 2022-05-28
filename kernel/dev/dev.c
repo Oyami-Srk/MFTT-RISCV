@@ -20,6 +20,8 @@ int init_driver() {
             continue;
 
         list_foreach_entry(head_driver, dev_driver_t, list, added) {
+            if (!added)
+                break;
             if (added->loading_sequence >= dlevel) {
                 list_add_tail(&((*drv)->list), &(added->list));
                 goto out;

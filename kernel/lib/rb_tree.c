@@ -116,7 +116,7 @@ static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
 
         if (parent == gparent->L) {
             {
-                register rb_node *uncle = gparent->R;
+                rb_node *uncle = gparent->R;
                 if (uncle && GET_COLOR(uncle) == RB_RED) {
                     BLACK(uncle);
                     BLACK(parent);
@@ -127,7 +127,7 @@ static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
             }
 
             if (parent->R == node) {
-                register rb_node *tmp;
+                rb_node *tmp;
                 rb_rotate_left(tree, parent);
                 tmp    = parent;
                 parent = node;
@@ -139,7 +139,7 @@ static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
             rb_rotate_right(tree, gparent);
         } else {
             {
-                register rb_node *uncle = gparent->L;
+                rb_node *uncle = gparent->L;
                 if (uncle && GET_COLOR(uncle) == RB_RED) {
                     BLACK(uncle);
                     BLACK(parent);
@@ -150,7 +150,7 @@ static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
             }
 
             if (parent->L == node) {
-                register rb_node *tmp;
+                rb_node *tmp;
                 rb_rotate_right(tree, parent);
                 tmp    = parent;
                 parent = node;

@@ -331,7 +331,6 @@ void dmac_wait_idle(dmac_channel_number_t channel_num) {
 }
 
 static int dmac_intr() {
-    kprintf(".");
     dmac_chanel_interrupt_clear(DMAC_CHANNEL0);
     wakeup(dmac_chan);
     return 0;

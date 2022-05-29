@@ -11,7 +11,7 @@ static ALWAYS_INLINE inline void w_tp(uint64_t hartid) {
 }
 
 static ALWAYS_INLINE inline uint64_t r_tp() {
-    uint64_t ret;
+    register uint64_t ret;
     asm volatile("mv %0, tp" : "=r"(ret)::);
     return ret;
 }

@@ -166,6 +166,7 @@ void print_sstatus(uint64_t sstatus) {
 
 void exception_panic(uint64_t scause, uint64_t stval, uint64_t sepc,
                      uint64_t sstatus, struct trap_context *trapframe) {
+    disable_trap();
     // lock
     lock_exception();
 
@@ -182,11 +183,12 @@ void exception_panic(uint64_t scause, uint64_t stval, uint64_t sepc,
     printf_nolock(" sepc: %18lp\tstval: %18lp\n", sepc, stval);
     dump_trapframe(trapframe);
     printf_nolock("KERN_BASE: %lp\tKERN_END: %lp\n", KERN_BASE, KERN_END);
-    printf_nolock("Kernel Page Dir: %p\n", os_env.kernel_pagedir);
-    printf_nolock("Kernel Stack: %p ~ %p\nKernel Code: %p ~ %p",
+    printf_nolock("Kernel Page Dir: %lp\n", os_env.kernel_pagedir);
+    printf_nolock("Kernel Stack: %lp ~ %lp\nKernel Code: %lp ~ %lp\n",
                   os_env.kernel_boot_stack, os_env.kernel_boot_stack_top,
                   KERN_CODE_START, KERN_CODE_END);
-    printf_nolock("Env Guard: %p, %p\n", os_env.begin_gaurd, os_env.end_gaurd);
+    printf_nolock("Env Guard: %lp, %lp\n", os_env.begin_gaurd,
+                  os_env.end_gaurd);
     printf_nolock("\n================================================\n\n",
                   cpuid());
     // release lock

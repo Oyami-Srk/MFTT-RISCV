@@ -57,8 +57,8 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         started = 1;
     } else {
         // Salve cores
-        //        init_trap();
-        while (1)
+        init_trap();
+        while (!started)
             ;
     }
 
@@ -88,6 +88,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             // After process invoke yield, they returned here
             // without lock
             assert(myproc() == proc, "Current proc changed.");
+            mycpu()->proc = NULL;
         } else {
             mycpu()->proc = NULL;
             // switch to kernel paging table

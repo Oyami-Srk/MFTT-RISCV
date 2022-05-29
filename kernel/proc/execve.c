@@ -106,7 +106,7 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
 
     // free old process
     spinlock_acquire(&old->lock);
-    proc_free(old, true);
+    proc_free(old);
     spinlock_release(&old->lock);
 
     // load elf file

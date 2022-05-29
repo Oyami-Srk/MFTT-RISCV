@@ -132,15 +132,18 @@ typedef struct __proc_t proc_t;
 void init_proc();
 
 proc_t *proc_alloc();
-void    proc_free(proc_t *proc, bool keep);
+void    proc_free(proc_t *proc);
 proc_t *myproc();
 
 void sleep(void *chan, spinlock_t *lock);
 void wakeup(void *chan);
 
-int do_fork(proc_t *parent);
-int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
-              const char *env[]);
+int  do_fork(proc_t *parent);
+int  do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
+               const char *env[]);
+int  do_brk(proc_t *proc, uintptr_t addr);
+void do_exit(proc_t *proc, int ec);
+pid_t do_wait(pid_t waitfor, int *status, int options);
 
 /* Note:
  *

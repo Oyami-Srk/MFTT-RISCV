@@ -39,9 +39,10 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
                     (char *)stval,
                     (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF) << PG_SHIFT),
                     true) != 0) {
-                kpanic("do page fault failed.\n");
+                goto exception;
             }
         } else {
+        exception:
             exception_panic(scause, stval, sepc, sstatus, tf);
             while (1)
                 ;

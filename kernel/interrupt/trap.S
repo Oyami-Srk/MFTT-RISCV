@@ -43,14 +43,8 @@ supervisor_interrupt_vector:
     mv a0, sp
 
     /* Call supervisor trap handler */
-    la a1, ret
-    mv ra, a1
-    bne ra, zero, nz
-    ebreak
-nz:
-    j supervisor_trap_handler
+    call supervisor_trap_handler
 
-ret:
     /* Restore */
     ld ra, 0(sp)
     ld sp, 8(sp)

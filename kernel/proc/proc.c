@@ -9,6 +9,8 @@
 _Static_assert(sizeof(struct trap_context) == sizeof(uint64_t) * 31,
                "Trap context wrong.");
 
+static proc_t *proc_table_debug[MAX_PROC] = {[0 ... MAX_PROC - 1] = NULL};
+
 // for elf loader.
 static size_t memory_reader(void *data, uint64_t offset, char *target,
                             size_t size) {
@@ -80,7 +82,8 @@ proc_t *proc_alloc() {
     list_add(&proc->proc_list, &os_env.procs);
     spinlock_acquire(&proc->lock);
     spinlock_release(&os_env.proc_lock);
-    proc->pid = pid;
+    proc->pid             = pid;
+    proc_table_debug[pid] = proc;
 
     proc->kernel_stack =
         page_alloc(PG_ROUNDUP(PROG_KSTACK_SIZE) / PG_SIZE, PAGE_TYPE_SYSTEM);
@@ -113,7 +116,7 @@ proc_t *proc_alloc() {
     return proc;
 }
 
-void proc_free(proc_t *proc, bool keep) {
+void proc_free(proc_t *proc) {
     // must hold lock
     assert(proc->lock.lock, "Proc free with unlocked.");
     // TODO: free resource. walk pde and decreate reference count
@@ -130,17 +133,12 @@ void proc_free(proc_t *proc, bool keep) {
                 PG_ROUNDUP(proc->stack_bottom - (uintptr_t)proc->stack_top) /
                     PG_SIZE,
                 true);
-    if (!keep) {
-        spinlock_acquire(&os_env.proc_lock);
-        clear_bit(os_env.proc_bitmap, proc->pid);
-        spinlock_release(&os_env.proc_lock);
-    }
 }
 
 // Return current CPU process.
 proc_t *myproc() {
-    // trap_push_off();
+    trap_push_off();
     proc_t *p = mycpu()->proc;
-    // trap_pop_off();
+    trap_pop_off();
     return p;
 }

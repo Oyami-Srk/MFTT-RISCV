@@ -318,8 +318,30 @@ sysret_t sys_execve(struct trap_context *trapframe) {
     return r;
 }
 
-// Syscall table
+sysret_t sys_brk(struct trap_context *trapframe) {
+    uintptr_t brk_va = (uintptr_t)(trapframe->a0);
+    return do_brk(myproc(), brk_va);
+}
+
+sysret_t sys_getpid(struct trap_context *trapframe) { return myproc()->pid; }
+
+sysret_t sys_exit(struct trap_context *trapframe) {
+    do_exit(myproc(), (int)trapframe->a0);
+    kpanic("Never reach here.");
+}
+
+sysret_t sys_wait(struct trap_context *trapframe) {
+    pid_t waitfor  = (pid_t)trapframe->a0;
+    int  *u_status = (int *)trapframe->a1;
+    int   options  = (int)trapframe->a2;
+    int   k_status = 0;
+    pid_t r        = do_wait(waitfor, &k_status, options);
+    umemcpy(u_status, &k_status, sizeof(int));
+    return r;
+}
+
 extern sysret_t sys_test(struct trap_context *);
+// Syscall table
 // clang-format off
 static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_ticks] = sys_ticks,
@@ -346,11 +368,11 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_fstat]= NULL,
     [SYS_clone]= sys_clone,
     [SYS_execve]= sys_execve,
-    [SYS_wait4]= NULL,
-    [SYS_exit]= NULL,
+    [SYS_wait4]= sys_wait,
+    [SYS_exit]= sys_exit,
     [SYS_getppid]= sys_getppid,
-    [SYS_getpid]= NULL,
-    [SYS_brk]= NULL,
+    [SYS_getpid]= sys_getpid,
+    [SYS_brk]= sys_brk,
     [SYS_munmap]= NULL,
     [SYS_mmap]= NULL,
     [SYS_times]= NULL,
@@ -417,7 +439,7 @@ void do_syscall(struct trap_context *trapframe) {
         return;
     }
     // TODO: strace
-    kprintf("========> %s\n", syscall_names[syscall_id]);
+    // kprintf("========> %s\n", syscall_names[syscall_id]);
     sysret_t ret  = syscall_table[syscall_id](trapframe);
     trapframe->a0 = ret;
 }

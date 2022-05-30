@@ -70,9 +70,22 @@ int main() {
                         close(disk_fd);
                     }
                     syscall_test(0, 0);
-                    printf("test fork and execve.\n");
+                    printf("test fork, pipe and execve.\n");
+                    int fds[2] = {0, 0};
+                    if (pipe2(fds) == 0) {
+                        printf("Pipe create successful.\n");
+                    } else {
+                        fds[0] = fds[1] = 0;
+                    }
                     int ret = fork();
                     if (ret == 0) {
+                        if (fds[0] != 0) {
+                            printf("I'm child, waiting for pipe to read.\n");
+                            char pipe_buf[32];
+                            memset(pipe_buf, 0, 32);
+                            read(fds[0], pipe_buf, 32);
+                            printf("Pipe read: %s\n", pipe_buf);
+                        }
                         printf("I'm child, doing execve right now.\n");
                         const char *argv[] = {"arg1", "pworld", "helloi",
                                               "arg4", NULL};
@@ -81,6 +94,12 @@ int main() {
                                (char *const *)env);
                     } else if (ret > 0) {
                         printf("I'm parent, child pid is %d.\n", ret);
+                        if (fds[1] != 0) {
+                            printf("I'm parent, write to pipe.\n");
+                            char pipe_buf[32];
+                            strcpy(pipe_buf, "Hello pipe, this is parent!");
+                            write(fds[1], pipe_buf, 32);
+                        }
                         printf("Wating for exit...\n");
                         int      status;
                         uint64_t pid = wait4(WAIT_ANY, &status, 0);

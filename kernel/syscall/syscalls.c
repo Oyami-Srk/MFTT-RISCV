@@ -2,6 +2,7 @@
 // Created by shiroko on 22-5-6.
 //
 
+#include <dev/pipe.h>
 #include <environment.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
@@ -78,11 +79,12 @@ sysret_t sys_open(struct trap_context *trapframe) {
 }
 
 sysret_t sys_close(struct trap_context *trapframe) {
-    int      fd      = (int)(trapframe->a0 & 0xFFFFFFFF);
-    file_t **ftables = myproc()->files;
-    if (ftables[fd]) {
-        vfs_close(ftables[fd]);
-        ftables[fd] = NULL;
+    int     fd   = (int)(trapframe->a0 & 0xFFFFFFFF);
+    proc_t *proc = myproc();
+    file_t *file = proc->files[fd];
+    if (file) {
+        vfs_close(file);
+        proc->files[fd] = NULL;
         return 0;
     } else {
         return -1;
@@ -137,14 +139,14 @@ sysret_t sys_write(struct trap_context *trapframe) {
 }
 
 sysret_t sys_lseek(struct trap_context *trapframe) {
-    int    fd     = (int)trapframe->a0;
-    size_t offset = trapframe->a1;
-    int    whence = (int)trapframe->a2;
+    int      fd     = (int)trapframe->a0;
+    offset_t offset = (offset_t)trapframe->a1;
+    int      whence = (int)trapframe->a2;
 
-    file_t **ftables = myproc()->files;
-    if (ftables[fd]) {
-        file_t *f = ftables[fd];
-        return (sysret_t)vfs_lseek(f, offset, whence);
+    proc_t *proc = myproc();
+    file_t *file = proc->files[fd];
+    if (file) {
+        return (sysret_t)vfs_lseek(file, offset, whence);
     } else {
         return -1;
     }
@@ -179,12 +181,13 @@ sysret_t sys_mkdirat(struct trap_context *trapframe) {
         return -1;
     int mode = (int)trapframe->a1;
 
-    file_t  **ftables = myproc()->files;
-    dentry_t *d       = NULL;
+    proc_t   *proc   = myproc();
+    file_t  **ftable = proc->files;
+    dentry_t *d      = NULL;
     if (fd == AT_FDCWD) {
-        d = myproc()->cwd;
-    } else if (ftables[fd]) {
-        d = ftables[fd]->f_dentry;
+        d = proc->cwd;
+    } else if (ftable[fd]) {
+        d = ftable[fd]->f_dentry;
     } else {
         kfree(filename);
         return -1;
@@ -391,6 +394,82 @@ sysret_t sys_chdir(struct trap_context *trapframe) {
     return r;
 }
 
+sysret_t sys_pipe2(struct trap_context *trapframe) {
+    int    *ufds      = (int *)trapframe->a0;
+    int     kfds[2]   = {0, 0};
+    file_t *kfiles[2] = {NULL, NULL};
+
+    file_t **ftable = myproc()->files;
+    int      co     = 0;
+    for (int i = 3; i < MAX_FILE_OPEN; i++) {
+        if (ftable[i] == NULL) {
+            file_t *file = (file_t *)kmalloc(sizeof(file_t));
+            if (!file) {
+                goto failed;
+            }
+            memset(file, 0, sizeof(file_t));
+            ftable[i]  = file;
+            kfiles[co] = file;
+            kfds[co++] = i;
+            if (co == 2)
+                break;
+        }
+    }
+    if (kfds[1] == 0)
+        goto failed;
+
+    int r = pipe_create(kfiles[0], kfiles[1]);
+    if (r != 0)
+        goto failed;
+
+    umemcpy(ufds, kfds, sizeof(int) * 2);
+    return 0;
+failed:
+    for (int i = 0; i < 2; i++)
+        if (kfds[i]) {
+            file_t *file = ftable[kfds[i]];
+            if (file->f_fs_data && file->f_op)
+                file->f_op->close(file);
+            ftable[kfds[i]] = NULL;
+            kfree(file);
+        }
+    return -1;
+}
+
+sysret_t sys_dup2(struct trap_context *trapframe) {
+    int old_fd = (int)trapframe->a0;
+    int new_fd = -1;
+
+    file_t **ftable = myproc()->files;
+    if (ftable[old_fd] == NULL)
+        return -1;
+    for (int i = 3; i < MAX_FILE_OPEN; i++) {
+        if (ftable[i] == NULL) {
+            new_fd = i;
+            break;
+        }
+    }
+    if (new_fd == -1)
+        return -1;
+    ftable[new_fd] = vfs_fdup(ftable[old_fd]);
+
+    return new_fd;
+}
+
+sysret_t sys_dup3(struct trap_context *trapframe) {
+    int old_fd = (int)trapframe->a0;
+    int new_fd = (int)trapframe->a1;
+
+    file_t **ftable = myproc()->files;
+    if (ftable[old_fd] == NULL)
+        return -1;
+    if (ftable[new_fd] != NULL)
+        vfs_close(ftable[new_fd]);
+    ftable[new_fd] = vfs_fdup(ftable[old_fd]);
+
+    return new_fd;
+}
+
 extern sysret_t sys_test(struct trap_context *);
 // Syscall table
 // clang-format off
@@ -405,10 +484,10 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_write] = sys_write,
     [SYS_read] = sys_read,
     [SYS_lseek] = sys_lseek,
-    [SYS_getcwd]= NULL,
-    [SYS_pipe2]= NULL,
-    [SYS_dup]= NULL,
-    [SYS_dup3]= NULL,
+    [SYS_getcwd]= sys_getcwd,
+    [SYS_pipe2]= sys_pipe2,
+    [SYS_dup]= sys_dup2,
+    [SYS_dup3]= sys_dup3,
     [SYS_chdir]= sys_chdir,
     [SYS_getdents64]= sys_getdents64,
     [SYS_linkat]= NULL,

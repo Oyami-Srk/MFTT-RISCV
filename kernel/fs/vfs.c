@@ -279,6 +279,7 @@ file_t *vfs_open(dentry_t *dentry, int mode) {
     file->f_offset = 0;
     file->f_op     = file->f_inode->i_f_op;
     file->f_mode   = mode;
+    file->f_counts = 1;
     if (file->f_op && file->f_op->open)
         if (file->f_op->open(file) != 0) {
             // err, TODO: handle this
@@ -288,7 +289,25 @@ file_t *vfs_open(dentry_t *dentry, int mode) {
     return file;
 }
 
-int vfs_close(file_t *file) {}
+file_t *vfs_fdup(file_t *old) {
+    old->f_counts++;
+    return old;
+}
+
+int vfs_close(file_t *file) {
+    --file->f_counts;
+    if (unlikely(file->f_counts < 0)) {
+        kpanic("fild closed execced opens.");
+    } else if (file->f_counts == 0) {
+        int r = 0;
+        if (file->f_op && file->f_op->close) {
+            r = file->f_op->close(file);
+        }
+        kfree(file);
+        return r;
+    }
+    return 0;
+}
 
 int vfs_read(file_t *file, char *buffer, size_t offset, size_t len) {
     if (!file->f_op || !file->f_op->read)

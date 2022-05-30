@@ -148,11 +148,13 @@ struct vfs_superblock {
 
 // File标识一个被打开的文件实例。
 struct vfs_file {
+    // maybe a type here?
     struct vfs_inode     *f_inode;
     size_t                f_offset;
     struct vfs_dir_entry *f_dentry;
     struct vfs_file_ops  *f_op;
     int                   f_mode;
+    int                   f_counts;
 
     void *f_fs_data;
 };
@@ -182,6 +184,7 @@ superblock_t *vfs_create_superblock();
 void          vfs_destroy_superblock(superblock_t *sb);
 
 file_t *vfs_open(dentry_t *dentry, int mode);
+file_t *vfs_fdup(file_t *old);
 int     vfs_close(file_t *file);
 int     vfs_read(file_t *file, char *buffer, size_t offset, size_t len);
 int     vfs_write(file_t *file, const char *buffer, size_t offset, size_t len);

@@ -443,12 +443,16 @@ static int read(file_t *file, char *buffer, size_t offset, size_t len) {
     }
     return len;
 }
-static int write(file_t *file, const char *buffer, size_t offset, size_t len) {}
-static int close(file_t *file) {}
-static int flush(file_t *file) {}
-static int seek(file_t *file, size_t offset) {}
-static int mmap(file_t *file, char *addr, size_t offset, size_t len) {}
-static int munmap(file_t *file, char *addr, size_t len) {}
+static int write(file_t *file, const char *buffer, size_t offset, size_t len) {
+    return 0;
+}
+static int close(file_t *file) { return 0; }
+static int flush(file_t *file) { return 0; }
+static int seek(file_t *file, size_t offset) { return 0; }
+static int mmap(file_t *file, char *addr, size_t offset, size_t len) {
+    return 0;
+}
+static int munmap(file_t *file, char *addr, size_t len) { return 0; }
 
 static file_ops_t file_ops = {
     .write = write,

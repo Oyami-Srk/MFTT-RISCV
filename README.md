@@ -1,27 +1,36 @@
 # MFTT-RISCV
 
-Original project host on github: https://github.com/Oyami-Srk/MFTT-RISCV
+原始项目在Github上Host：https://github.com/Oyami-Srk/MFTT-RISCV
 
-My First Touch To RISCV
+这是我第一次接触RISCV，再加上时间仓促（4月末了解到，时间十分紧张），所以完成度不是很高。
 
-*WHAT A PITY THAT OJ HAVE NO SUPPORT FOR CMAKE*
+将在大赛结束后继续完善该项目。能完赛就已经是我的一个希望了。
 
-What I've done:
+*大赛的OJ系统不支持Cmake真的是遗憾*
 
-* Boot
-* Memory allocator(Page allocator based on buddy system and memory pool based on RB-Tree)
-* Trap handler
-* Process managment
-* Copy-on-write fork
-* Virtual File System
-* General FDT Prober framework
-* General Driver framework
-* FAT Fs (Currently read only)
-* execve (But only 1/3 to successfully run TvT)
+现在完成的部分
 
-What I'm doing:
-* K210 Port (Use driver code from xv6-k210)
-* Syscalls for comp
+* 双核启动
+* 基于伙伴算法的页分配器和基于红黑树的小块内存分配器（
+* 中断和异常陷入处理
+* 进程管理、写时复制（CoW）fork
+* 通用FDT设备探针框架
+* 通用设备驱动框架（本内核致力于不硬编码任何设备相关的信息，但碍于某些特殊情况和时间紧急，这是不可避免的）
+* FAT32文件系统（当前仅可读）
+* Execve、dup、pipe等常用POSIX系统调用方法
 
-What I've not done:
-* Time managment
+正在做的部分：
+
+* K210问题解决
+* 完善比赛需要的系统调用
+
+还没开始做的部分：
+
+* 时间管理
+
+感谢：
+
+**本项目在开发过程中，引用并参考了以下项目的代码**
+
+* Linux
+* xv6-k210

@@ -15,7 +15,7 @@ struct _rb_node {
     uint64_t         parent_and_color;
     struct _rb_node *L;
     struct _rb_node *R;
-} __attribute__((aligned(16)));
+} __attribute__((aligned(8)));
 
 struct _rb_tree {
     struct _rb_node *root;

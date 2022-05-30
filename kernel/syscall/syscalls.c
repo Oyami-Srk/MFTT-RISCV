@@ -7,7 +7,9 @@
 #include <lib/string.h>
 #include <lib/sys/spinlock.h>
 #include <stddef.h>
+#include <sys_structs.h>
 #include <syscall.h>
+#include <trap.h>
 #include <vfs.h>
 
 // Syscall is running in proc context with S-privilge
@@ -340,6 +342,28 @@ sysret_t sys_wait(struct trap_context *trapframe) {
     return r;
 }
 
+sysret_t sys_sched_yield(struct trap_context *trapframe) {
+    yield();
+    return 0;
+}
+
+static struct utsname build_uts_name = {.sysname  = "MFTT-RISCV",
+                                        .nodename = "",
+                                        .release  = "0.1.0",
+                                        .version  = __TIME__ __DATE__,
+                                        .machine  = "riscv64"};
+
+sysret_t sys_uname(struct trap_context *trapframe) {
+    struct utsname *uts = (struct utsname *)(trapframe->a0);
+    umemcpy(uts, &build_uts_name, sizeof(struct utsname));
+    return 0;
+}
+
+sysret_t sys_getcwd(struct trap_context *trapframe) {
+    char  *ubuf = (char *)trapframe->a0;
+    size_t size = (size_t)trapframe->a1;
+}
+
 extern sysret_t sys_test(struct trap_context *);
 // Syscall table
 // clang-format off
@@ -376,8 +400,8 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_munmap]= NULL,
     [SYS_mmap]= NULL,
     [SYS_times]= NULL,
-    [SYS_uname]= NULL,
-    [SYS_sched_yield]= NULL,
+    [SYS_uname]= sys_uname,
+    [SYS_sched_yield]= sys_sched_yield,
     [SYS_gettimeofday]= NULL,
     [SYS_nanosleep]= NULL,
 };

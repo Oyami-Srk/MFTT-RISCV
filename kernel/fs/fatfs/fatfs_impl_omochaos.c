@@ -374,6 +374,7 @@ size_t read_file(struct FAT32_FileSystem *fs, struct fs_file_info *fileinfo,
 static int inode_idx = 1000;
 
 static rb_tree inode_tree = {.root = NULL};
+// TODO: build hashmap for path to inode
 
 static inode_t *alloc_inode(superblock_t *sb);
 
@@ -460,19 +461,10 @@ static file_ops_t file_ops = {
     .close  = close,
 };
 
-// 在目录项中寻找名字为name的目录项，并写入found_inode中
-static int lookup(inode_t *inode, const char *name, dentry_t **found_inode) {}
-// 链接/取消链接 一个inode到dir里。
-static int link(inode_t *inode, inode_t *dir, const char *name) {}
-static int unlink(inode_t *dir, const char *name) {}
-// 创建/删除目录inode
-static int mkdir(inode_t *parent, const char *name, inode_t **dir) {}
-static int rmdir(inode_t *parent, const char *name, inode_t **dir) {}
-static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
-    assert(dir->i_type == inode_dir, "Must be dir.");
-    struct FAT32_FileSystem *fs = dir->i_sb->s_fs_data;
-    uint32_t dir_clus = ((fatfs_inode_data_t *)dir->i_fs_data)->start_clus;
-
+typedef int (*fat_dirent_loop_callback_t)(union FAT32_DirEnt *dirent,
+                                          void               *data);
+static void loop_fat_dirent(struct FAT32_FileSystem *fs, uint32_t dir_clus,
+                            fat_dirent_loop_callback_t callback, void *data) {
     for (;;) {
         for (uint32_t i = 0; i < fs->SecPerClus; i++) {
             buffered_io_t *buf = bio_cache_read(
@@ -495,32 +487,12 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
                     continue; // TODO: support long name
                 if (DirEnt.Attr & ATTR_VOLUME_ID)
                     continue; // TODO: read it
-                char dname[12] = {[0 ... 11] = 0};
-                read_8_3_filename(DirEnt.Name, dname);
-                inode_t *inode = alloc_inode(dir->i_sb);
-                ((fatfs_inode_data_t *)inode->i_fs_data)->start_clus =
-                    DirEnt.FstClusHI << 16 | DirEnt.FstClusLO;
-                inode->i_size   = DirEnt.FileSize;
-                inode->i_nlinks = 1;
 
-                dentry_t *dentry = (dentry_t *)kmalloc(sizeof(dentry_t));
-                memset(dentry, 0, sizeof(dentry_t));
-                dentry->d_subdirs =
-                    (list_head_t)LIST_HEAD_INIT(dentry->d_subdirs);
-                dentry->d_inode = inode;
-                strcpy(dentry->d_name, dname);
-
-                if (DirEnt.Attr & ATTR_DIR) {
-                    // ent is a dir
-                    inode->i_type  = inode_dir;
-                    dentry->d_type = D_TYPE_DIR;
-                } else {
-                    // ent is a file
-                    inode->i_type  = inode_file;
-                    dentry->d_type = D_TYPE_FILE;
-                }
                 // call callback
-                callback(dentry, data);
+                if (callback(&DirEnt, data) != 0) {
+                    bio_cache_release(buf);
+                    return;
+                }
             }
             bio_cache_release(buf);
         }
@@ -528,6 +500,52 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
         if (dir_clus >= 0xFFFFFF8 && dir_clus <= 0xFFFFFFF)
             break;
     }
+}
+
+// 在目录项中寻找名字为name的目录项，并写入found_inode中
+static int lookup(inode_t *dir, const char *name, dentry_t **found_inode) {}
+// 链接/取消链接 一个inode到dir里。
+static int link(inode_t *inode, inode_t *dir, const char *name) {}
+static int unlink(inode_t *dir, const char *name) {}
+// 创建/删除目录inode
+static int mkdir(inode_t *parent, const char *name, inode_t **dir) {}
+static int rmdir(inode_t *parent, const char *name, inode_t **dir) {}
+static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
+    assert(dir->i_type == inode_dir, "Must be dir.");
+    struct FAT32_FileSystem *fs = dir->i_sb->s_fs_data;
+    uint32_t dir_clus = ((fatfs_inode_data_t *)dir->i_fs_data)->start_clus;
+
+    int looper(union FAT32_DirEnt * dirent, void *_data) {
+        char dname[12] = {[0 ... 11] = 0};
+        read_8_3_filename(dirent->Name, dname);
+        inode_t *inode = alloc_inode(dir->i_sb);
+        ((fatfs_inode_data_t *)inode->i_fs_data)->start_clus =
+            dirent->FstClusHI << 16 | dirent->FstClusLO;
+        inode->i_size   = dirent->FileSize;
+        inode->i_nlinks = 1;
+
+        dentry_t *dentry = (dentry_t *)kmalloc(sizeof(dentry_t));
+        memset(dentry, 0, sizeof(dentry_t));
+        dentry->d_subdirs = (list_head_t)LIST_HEAD_INIT(dentry->d_subdirs);
+        dentry->d_inode   = inode;
+        strcpy(dentry->d_name, dname);
+
+        if (dirent->Attr & ATTR_DIR) {
+            // ent is a dir
+            inode->i_type  = inode_dir;
+            dentry->d_type = D_TYPE_DIR;
+        } else {
+            // ent is a file
+            inode->i_type  = inode_file;
+            dentry->d_type = D_TYPE_FILE;
+        }
+
+        callback(dentry, data);
+        return 0;
+    };
+
+    loop_fat_dirent(fs, dir_clus, looper, NULL);
+
     return 0;
 }
 
@@ -536,7 +554,7 @@ static inode_ops_t inode_ops = {
     .rmdir    = rmdir,
     .link     = link,
     .unlink   = unlink,
-    .lookup   = lookup,
+    .lookup   = NULL,
     .read_dir = read_dir,
 };
 

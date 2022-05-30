@@ -25,6 +25,7 @@ SECTIONS {
 
     .data ALIGN(0x1000) : {
         *(.data .data.*)
+        *(.sdata .sdata.*)
 
         /* Driver's data */
         PROVIDE(__start_DevDrivers = .);
@@ -35,6 +36,11 @@ SECTIONS {
         PROVIDE(__start_FDTProbers = .);
         *(FDTProbers*)
         PROVIDE(__stop_FDTProbers = .);
+
+        /* Filesystems data */
+        PROVIDE(__start_Filesystems = .);
+        *(Filesystems*)
+        PROVIDE(__stop_Filesystems = .);
     }
 
     .bss ALIGN(0x1000) : {

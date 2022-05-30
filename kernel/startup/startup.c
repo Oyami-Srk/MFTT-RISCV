@@ -22,6 +22,9 @@ static void clear_bss() {
 #define BSS_START (((char *)(__bss_start)))
     extern volatile char __bss_end[];
 #define BSS_END (((char *)(__bss_end)))
+    /*
+    for (uint64_t *p = (uint64_t *)BSS_START; p < (uint64_t *)BSS_END; p++)
+        *p = 0; */
     memset(BSS_START, 0, BSS_END - BSS_START);
 }
 

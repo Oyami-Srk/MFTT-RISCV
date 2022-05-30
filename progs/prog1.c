@@ -4,7 +4,7 @@
 
 int main() {
     printf("Hello My First Program execve from disk!\n");
-    for (;;) {
-        sleep(100000);
-    }
+    printf("And then I do exit.\n");
+    exit(233);
+    return 0;
 }

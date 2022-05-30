@@ -9,7 +9,7 @@
 _Static_assert(sizeof(struct trap_context) == sizeof(uint64_t) * 31,
                "Trap context wrong.");
 
-static proc_t *proc_table_debug[MAX_PROC] = {[0 ... MAX_PROC - 1] = NULL};
+static proc_t *proc_table[MAX_PROC] = {[0 ... MAX_PROC - 1] = NULL};
 
 // for elf loader.
 static size_t memory_reader(void *data, uint64_t offset, char *target,
@@ -82,8 +82,9 @@ proc_t *proc_alloc() {
     list_add(&proc->proc_list, &os_env.procs);
     spinlock_acquire(&proc->lock);
     spinlock_release(&os_env.proc_lock);
-    proc->pid             = pid;
-    proc_table_debug[pid] = proc;
+    proc->pid       = pid;
+    proc_table[pid] = proc;
+    proc->children  = (list_head_t)LIST_HEAD_INIT(proc->children);
 
     proc->kernel_stack =
         page_alloc(PG_ROUNDUP(PROG_KSTACK_SIZE) / PG_SIZE, PAGE_TYPE_SYSTEM);
@@ -142,3 +143,8 @@ proc_t *myproc() {
     trap_pop_off();
     return p;
 }
+
+// TODO: use rb tree to hold processes
+proc_t *get_proc(pid_t pid) { return proc_table[pid]; }
+
+void set_proc(pid_t pid, proc_t *proc) { proc_table[pid] = proc; }

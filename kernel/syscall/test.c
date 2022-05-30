@@ -9,6 +9,4 @@
 #include <syscall.h>
 #include <vfs.h>
 
-sysret_t sys_test(struct trap_context *trapframe) {
-    dentry_t *test = vfs_get_dentry("/mnt/TEST_DIR/C", NULL);
-}
+sysret_t sys_test(struct trap_context *trapframe) {}

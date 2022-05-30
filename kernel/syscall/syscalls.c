@@ -362,6 +362,33 @@ sysret_t sys_uname(struct trap_context *trapframe) {
 sysret_t sys_getcwd(struct trap_context *trapframe) {
     char  *ubuf = (char *)trapframe->a0;
     size_t size = (size_t)trapframe->a1;
+
+    char  *kbuf = vfs_get_dentry_fullpath(myproc()->cwd);
+    size_t len  = strlen(kbuf) + 1;
+    if (size < len)
+        return (sysret_t)NULL; // buffer to small
+    else {
+        umemcpy(ubuf, kbuf, len);
+        kfree(kbuf);
+        return (sysret_t)ubuf;
+    }
+}
+
+sysret_t sys_chdir(struct trap_context *trapframe) {
+    char *path = ustrcpy_out((char *)trapframe->a0);
+
+    proc_t   *proc    = myproc();
+    dentry_t *new_cwd = vfs_get_dentry(path, proc->cwd);
+    sysret_t  r       = 0;
+    if (new_cwd) {
+        proc->cwd = new_cwd;
+        r         = 0;
+    } else {
+        r = -1;
+    }
+
+    kfree(path);
+    return r;
 }
 
 extern sysret_t sys_test(struct trap_context *);
@@ -382,7 +409,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_pipe2]= NULL,
     [SYS_dup]= NULL,
     [SYS_dup3]= NULL,
-    [SYS_chdir]= NULL,
+    [SYS_chdir]= sys_chdir,
     [SYS_getdents64]= sys_getdents64,
     [SYS_linkat]= NULL,
     [SYS_unlinkat]= NULL,

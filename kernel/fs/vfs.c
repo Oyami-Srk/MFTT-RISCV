@@ -59,6 +59,20 @@ void init_vfs() {
     kprintf("\n");
 }
 
+static int vfs_read_dir_callback(dentry_t *dentry, void *data) {
+    dentry_t *parent = (dentry_t *)data;
+    dentry->d_parent = parent;
+    // TODO: use hashmap or rbtree
+    list_foreach_entry(&parent->d_subdirs, dentry_t, d_subdirs_list, child) {
+        if (child->d_inode->i_ino == dentry->d_inode->i_ino)
+            return 0;
+        if (strcmp(child->d_name, dentry->d_name) == 0)
+            return 0; // this is tempo
+    }
+    list_add(&dentry->d_subdirs_list, &parent->d_subdirs);
+    return 0;
+}
+
 dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
     // TODO: consider cache the search
     if (cwd == NULL)
@@ -90,6 +104,7 @@ dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
             } else if (dname[0] == '\0' || strcmp(".", dname) == 0) {
                 // skip
             } else {
+            search:
                 bool found = false;
                 list_foreach_entry(&par->d_subdirs, dentry_t, d_subdirs_list,
                                    dir) {
@@ -101,6 +116,7 @@ dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
                 }
                 if (!found) {
                     inode_t *dir_inode = par->d_inode;
+                    /*
                     if (!dir_inode || !dir_inode->i_op->lookup)
                         return NULL;
                     dentry_t *r;
@@ -108,7 +124,29 @@ dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
                     if (ret != 0 || !r)
                         return NULL;
                     list_add(&r->d_subdirs_list, &cwd->d_subdirs);
-                    par = r;
+                    par = r; */
+
+                    if (!dir_inode || !dir_inode->i_op)
+                        return NULL;
+                    if (dir_inode->i_op->lookup) {
+                        dentry_t *r;
+                        int ret = dir_inode->i_op->lookup(dir_inode, dname, &r);
+                        if (ret != 0 || !r)
+                            return NULL;
+                        list_add(&r->d_subdirs_list, &cwd->d_subdirs);
+                        par = r;
+                    } else if (par->d_loaded == false &&
+                               dir_inode->i_op->read_dir) {
+                        if (dir_inode->i_op->read_dir(dir_inode,
+                                                      vfs_read_dir_callback,
+                                                      (void *)par) == 0) {
+                            par->d_loaded = true;
+                            goto search;
+                        } else
+                            return NULL;
+                    } else {
+                        return NULL;
+                    }
                 }
             }
             meet = false;
@@ -130,6 +168,7 @@ dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
         return parent->d_parent;
     else if (strcmp(".", cname) == 0)
         return parent;
+search:
     list_foreach_entry(&parent->d_subdirs, dentry_t, d_subdirs_list, dir) {
         if (strcmp(cname, dir->d_name) == 0) {
             return dir;
@@ -137,14 +176,38 @@ dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd) {
     }
     // not found
     inode_t *dir_inode = parent->d_inode;
-    if (!dir_inode || !dir_inode->i_op || !dir_inode->i_op->lookup)
+    if (!dir_inode || !dir_inode->i_op)
         return NULL;
-    dentry_t *r;
-    int       ret = dir_inode->i_op->lookup(dir_inode, cname, &r);
-    if (ret != 0 || !r)
+    if (dir_inode->i_op->lookup) {
+        dentry_t *r;
+        int       ret = dir_inode->i_op->lookup(dir_inode, cname, &r);
+        if (ret != 0 || !r)
+            return NULL;
+        list_add(&r->d_subdirs_list, &cwd->d_subdirs);
+        return r;
+    } else if (parent->d_loaded == false && dir_inode->i_op->read_dir) {
+        if (dir_inode->i_op->read_dir(dir_inode, vfs_read_dir_callback,
+                                      (void *)parent) == 0) {
+            parent->d_loaded = true;
+            goto search;
+        } else
+            return NULL;
+    } else {
         return NULL;
-    list_add(&r->d_subdirs_list, &cwd->d_subdirs);
-    return r;
+    }
+}
+
+char *vfs_get_dentry_fullpath(dentry_t *dent) {
+    char *buf = kmalloc(256);
+    if (!buf)
+        return NULL;
+    char *p   = buf + 256;
+    char *end = (p--) + 1;
+    do {
+        *p = '\0';
+        p--;
+        dent = dent->d_parent;
+    } while (dent);
 }
 
 inode_t *vfs_alloc_inode(superblock_t *sb) {
@@ -283,13 +346,6 @@ dentry_t *vfs_mkdir(dentry_t *parent, const char *path, int mode) {
     strcpy(new->d_name, dname);
     list_add(&new->d_subdirs_list, &parent->d_subdirs);
     return new;
-}
-
-static int vfs_read_dir_callback(dentry_t *dentry, void *data) {
-    dentry_t *parent = (dentry_t *)data;
-    dentry->d_parent = parent;
-    list_add(&dentry->d_subdirs_list, &parent->d_subdirs);
-    return 0;
 }
 
 int vfs_read_dir(file_t *parent, read_dir_context_t *context) {

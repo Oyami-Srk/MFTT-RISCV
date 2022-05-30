@@ -17,7 +17,6 @@
 #endif
 
 int main() {
-    syscall_test(0, 0);
     printf("Hello world.!\n");
     int fd_disk = openat(0, DISK_DEVICE, 0, 0);
     if (fd_disk == -1)
@@ -70,6 +69,7 @@ int main() {
                                buf);
                         close(disk_fd);
                     }
+                    syscall_test(0, 0);
                     printf("test fork and execve.\n");
                     int ret = fork();
                     if (ret == 0) {

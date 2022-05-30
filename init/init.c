@@ -81,6 +81,10 @@ int main() {
                                (char *const *)env);
                     } else if (ret > 0) {
                         printf("I'm parent, child pid is %d.\n", ret);
+                        printf("Wating for exit...\n");
+                        int      status;
+                        uint64_t pid = wait4(WAIT_ANY, &status, 0);
+                        printf("PID %d exited with status %d.\n", pid, status);
                     } else {
                         printf("Error code: %d.\n", ret);
                     }

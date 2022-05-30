@@ -24,6 +24,12 @@ typedef unsigned int       uint;
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+#define WNOHANG    1
+#define WUNTRACED  2
+#define WCONTINUES 8
+
+#define WAIT_ANY (-1)
+
 /* *
  * Pointers and addresses are 32 bits long.
  * We use pointer types to represent addresses,

@@ -102,6 +102,7 @@ struct __proc_t {
     pid_t               pid;
     uint32_t            status;
     struct __proc_t    *parent;
+    list_head_t         children;
     void               *kernel_stack;
     void               *kernel_stack_top;
     struct task_context kernel_task_context;
@@ -125,6 +126,7 @@ struct __proc_t {
 
     // list
     list_head_t proc_list;
+    list_head_t child_list;
 } __attribute__((aligned(16)));
 
 typedef struct __proc_t proc_t;
@@ -134,6 +136,8 @@ void init_proc();
 proc_t *proc_alloc();
 void    proc_free(proc_t *proc);
 proc_t *myproc();
+proc_t *get_proc(pid_t pid);
+void    set_proc(pid_t pid, proc_t *proc);
 
 void sleep(void *chan, spinlock_t *lock);
 void wakeup(void *chan);

@@ -23,8 +23,11 @@ int do_fork(proc_t *parent) {
     vm_copy(child->page_dir, parent->page_dir, parent->stack_top,
             parent->stack_bottom);
 
+    // set parent-child relationship
+    child->parent = parent;
+    list_add(&child->child_list, &parent->children);
+
     // fork prog info
-    child->parent           = parent;
     child->prog_brk_pg_end  = parent->prog_brk_pg_end;
     child->prog_image_start = parent->prog_image_start;
     child->prog_size        = parent->prog_size;

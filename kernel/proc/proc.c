@@ -4,6 +4,7 @@
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <proc.h>
+#include <stddef.h>
 #include <trap.h>
 
 _Static_assert(sizeof(struct trap_context) == sizeof(uint64_t) * 31,
@@ -98,13 +99,14 @@ proc_t *proc_alloc() {
         return NULL; // TODO: clean up
     }
     // open 0,1,2 all to /dev/tty
-    dentry_t *dentry = vfs_get_dentry("/dev/tty", NULL);
-    file_t   *file   = vfs_open(dentry, 0);
-    proc->files[0]   = file;
-    proc->files[1]   = file;
-    proc->files[2]   = file;
-    proc->status     = PROC_STATUS_NORMAL;
-    proc->cwd        = vfs_get_root();
+    dentry_t *dentry      = vfs_get_dentry("/dev/tty", NULL);
+    file_t   *file_output = vfs_open(dentry, O_WRONLY);
+    file_t   *file_input  = vfs_open(dentry, O_RDONLY);
+    proc->files[0]        = file_input;
+    proc->files[1]        = file_output;
+    proc->files[2]        = vfs_fdup(file_output);
+    proc->status          = PROC_STATUS_NORMAL;
+    proc->cwd             = vfs_get_root();
 
     proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
     proc->kernel_task_context.ra = (uintptr_t)user_trap_return;

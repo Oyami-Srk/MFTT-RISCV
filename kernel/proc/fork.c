@@ -33,16 +33,18 @@ int do_fork(proc_t *parent) {
     child->prog_size        = parent->prog_size;
     child->prog_break       = parent->prog_break;
 
-    // fork file table
+    // dup file table
     for (int fp = 3; fp < MAX_FILE_OPEN; fp++) {
         file_t *f = parent->files[fp];
         if (f) {
+            /*
             file_t *nf = vfs_open(f->f_dentry, f->f_mode);
             if (!nf) {
                 kpanic("failed to open file in fork. handle this.");
             }
             nf->f_offset     = f->f_offset;
-            child->files[fp] = f;
+            child->files[fp] = f; */
+            child->files[fp] = vfs_fdup(f);
         }
     }
     // fork cwd

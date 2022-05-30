@@ -6,7 +6,7 @@
 #include <lib/string.h>
 #include <types.h>
 
-#define __FAT_FS_DEBUG__ 1
+#define __FAT_FS_DEBUG__ 0
 #include <driver/console.h>
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

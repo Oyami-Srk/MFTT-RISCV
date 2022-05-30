@@ -193,7 +193,9 @@ pde_t alloc_page_dir() {
 
 int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
     // debug
+#if PAGING_DEBUG
     kprintf("do vm copy at va 0x%lx ~ 0x%lx.\n", start, end);
+#endif
 
     char   *a;
     char   *va     = (char *)PG_ROUNDDOWN(start);

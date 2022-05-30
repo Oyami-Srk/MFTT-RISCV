@@ -198,16 +198,28 @@ search:
 }
 
 char *vfs_get_dentry_fullpath(dentry_t *dent) {
-    char *buf = kmalloc(256);
+    char *buf = kmalloc(128);
     if (!buf)
         return NULL;
-    char *p   = buf + 256;
-    char *end = (p--) + 1;
+    char *p   = buf + 128;
+    char *end = p;
+    *(--p)    = '\0';
+    // reverse build
     do {
-        *p = '\0';
-        p--;
+        char *pp = dent->d_name;
+        while (*(++pp) != '\0')
+            ;
+        while (pp > dent->d_name)
+            *(--p) = *(--pp);
         dent = dent->d_parent;
+        if ((dent->d_type == D_TYPE_DIR || dent->d_type == D_TYPE_MOUNTED) &&
+            dent->d_name[0] != '/')
+            *(--p) = '/';
     } while (dent);
+    // copy to head
+    for (char *s = buf; p != end; *(s++) = (*p++))
+        ;
+    return buf;
 }
 
 inode_t *vfs_alloc_inode(superblock_t *sb) {

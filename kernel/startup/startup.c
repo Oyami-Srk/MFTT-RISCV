@@ -17,21 +17,9 @@ _Static_assert(sizeof(void *) == sizeof(uint64_t), "Target must be 64bit.");
 
 volatile static int started = 0;
 
-static void clear_bss() {
-    extern volatile char __bss_start[];
-#define BSS_START (((char *)(__bss_start)))
-    extern volatile char __bss_end[];
-#define BSS_END (((char *)(__bss_end)))
-    /*
-    for (uint64_t *p = (uint64_t *)BSS_START; p < (uint64_t *)BSS_END; p++)
-        *p = 0; */
-    memset(BSS_START, 0, BSS_END - BSS_START);
-}
-
 _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
     set_cpuid(hartid);
     if (cpuid() == 0) {
-        clear_bss();
         kprintf("-*-*-*-*-*-*-*-*-*-*- My First Touch To RISC-V Starts "
                 "Here... -*-*-*-*-*-*-*-*-*-*-\n");
         kprintf("Kernel code from %lp to %lp.\n", KERN_CODE_START,

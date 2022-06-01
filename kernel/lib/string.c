@@ -1,5 +1,5 @@
-#include <types.h>
 #include <lib/string.h>
+#include <types.h>
 
 void *memcpy(void *dst, const void *src, size_t size) {
     const char *s;
@@ -36,9 +36,15 @@ size_t strlen(const char *s) {
 }
 
 void *memset(void *dst, char ch, size_t size) {
+    /*
     char *cdst = (char *)dst;
     for (size_t i = 0; i < size; i++)
         cdst[i] = ch;
+    return dst; */
+    char *s = (char *)dst;
+    // TODO: optimze this function
+    while (size--)
+        *(s++) = ch;
     return dst;
 }
 

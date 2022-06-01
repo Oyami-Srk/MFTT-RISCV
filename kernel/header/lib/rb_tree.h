@@ -37,6 +37,9 @@ rb_node *rb_insert(rb_tree *t, rb_node *n);
 // Remove a node, n must inside the tree
 void rb_remove(rb_tree *t, rb_node *n);
 // Replace the old with new, key must be identical
-void rb_replace(rb_node *old, rb_node *new);
+void rb_replace(rb_tree *tree, rb_node *old, rb_node *new);
+
+// validate
+void rb_validate(rb_node *node);
 
 #endif // __RB_TREE_H__

@@ -44,9 +44,22 @@ static ALWAYS_INLINE inline uint64_t r_tp() {
 #define SSTATUS_UXL0      (1L << 32)
 #define SSTATUS_UXL1      (1L << 33)
 #define SSTATUS_UXL_SHIFT 32
+
+#define BEGIN_UMEM_ACCESS() CSR_RWOR(sstatus, SSTATUS_SUM)
+#define STOP_UMEM_ACCESS()  CSR_RWAND(sstatus, ~SSTATUS_SUM)
+#define IS_UMEM_ACCESS()    (CSR_Read(sstatus) & SSTATUS_SUM)
 #else
-#define SSTATUS_SUM (0L << 18) // User memory accessable, for 1.9 (k210)
 #define SSTATUS_PUM (1L << 18) // User memory accessable, for 1.9 (k210)
+
+#if 0 // It should be enable by default
+#define BEGIN_UMEM_ACCESS() CSR_RWAND(sstatus, ~SSTATUS_PUM)
+#define STOP_UMEM_ACCESS()  CSR_RWOR(sstatus, SSTATUS_PUM)
+#define IS_UMEM_ACCESS()    (!(CSR_Read(sstatus) & SSTATUS_PUM))
+#else
+#define BEGIN_UMEM_ACCESS() (0 == 0)
+#define STOP_UMEM_ACCESS()  (0 == 0)
+#define IS_UMEM_ACCESS()    (1) // always true
+#endif
 #endif
 #define SSTATUS_SD (1L << 63)
 

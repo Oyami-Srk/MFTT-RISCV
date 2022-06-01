@@ -290,11 +290,12 @@ sysret_t sys_execve(struct trap_context *trapframe) {
     const char  *path = ustrcpy_out((char *)trapframe->a0);
     char *const *argv = (char *const *)trapframe->a1;
     char *const *envp = (char *const *)trapframe->a2;
-    CSR_RWOR(sstatus, SSTATUS_SUM);
+
+    BEGIN_UMEM_ACCESS();
     int    argc  = count_strs((const char **)argv);
     int    envc  = count_strs((const char **)envp);
-    char **kargv = (char **)kmalloc(sizeof(char *) * argc);
-    char **kenvp = (char **)kmalloc(sizeof(char *) * envc);
+    char **kargv = (char **)kmalloc(sizeof(char *) * (argc + 1));
+    char **kenvp = (char **)kmalloc(sizeof(char *) * (envc + 1));
     assert(kargv, "out of memory.");
     assert(kenvp, "out of memory.");
     kargv[argc] = kenvp[envc] = NULL;
@@ -304,7 +305,7 @@ sysret_t sys_execve(struct trap_context *trapframe) {
     for (int i = 0; i < envc; i++) {
         kenvp[i] = ustrcpy_out(envp[i]);
     }
-    CSR_RWAND(sstatus, ~SSTATUS_SUM);
+    STOP_UMEM_ACCESS();
     // do execve
     int r = do_execve(myproc(), myproc()->cwd, path, (const char **)kargv,
                       (const char **)kenvp);

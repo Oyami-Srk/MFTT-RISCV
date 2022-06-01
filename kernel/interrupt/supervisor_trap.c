@@ -26,9 +26,8 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
     if ((sstatus & SSTATUS_SIE) != 0) {
         CSR_RWAND(sstatus, ~SSTATUS_SIE);
     }
-    /*
     assert((sstatus & SSTATUS_SIE) == 0,
-           "Trap triggered with interrupt enabled.");*/
+           "Trap triggered with interrupt enabled.");
 
     if (scause & XCAUSE_INT) {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
@@ -50,8 +49,12 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
         }
     }
     CSR_Write(sepc, sepc);
+#ifdef PLATFORM_QEMU
     if (CSR_Read(sstatus) & SSTATUS_SUM)
         CSR_Write(sstatus, sstatus | SSTATUS_SUM);
     else
         CSR_Write(sstatus, sstatus);
+#else
+    CSR_Write(sstatus, sstatus);
+#endif
 }

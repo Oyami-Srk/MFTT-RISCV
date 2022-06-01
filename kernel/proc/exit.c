@@ -56,6 +56,7 @@ pid_t do_wait(pid_t waitfor, int *status, int options) {
                     *status = (int)child->exit_status;
                     // destory child'process
                     list_del(&child->child_list);
+                    list_del(&child->proc_list);
                     pid_t pid = child->pid;
                     kfree(child);
                     spinlock_acquire(&os_env.proc_lock);

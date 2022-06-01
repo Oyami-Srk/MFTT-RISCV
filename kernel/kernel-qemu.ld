@@ -15,7 +15,6 @@ SECTIONS {
 
     .rodata ALIGN(0x1000) : {
         *(.rodata .rodata.* .gnu.linkonce.r.* .init_code)
-        . = ALIGN(0x10); /* not sure they should align to 8 bytes */
     }
 
     .stab ALIGN(0x1000) : { /* Debug information */
@@ -27,16 +26,19 @@ SECTIONS {
         *(.data .data.*)
         *(.sdata .sdata.*)
 
+        . = ALIGN(8);
         /* Driver's data */
         PROVIDE(__start_DevDrivers = .);
-        *(DevDrivers)
+        *(DevDrivers*)
         PROVIDE(__stop_DevDrivers = .);
 
+        . = ALIGN(8);
         /* FDT Prober's data */
         PROVIDE(__start_FDTProbers = .);
         *(FDTProbers*)
         PROVIDE(__stop_FDTProbers = .);
 
+        . = ALIGN(8);
         /* Filesystems data */
         PROVIDE(__start_Filesystems = .);
         *(Filesystems*)
@@ -50,6 +52,7 @@ SECTIONS {
         *(.bss .bss.*)
         *(.sbss .sbss.*)
         *(.ebss .ebss.*)
+        . = ALIGN(8);
         PROVIDE(__bss_end = .);
     }
 

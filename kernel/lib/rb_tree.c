@@ -68,8 +68,11 @@ rb_node *rb_pred(rb_node *n) {
     }
 }
 
-static ALWAYS_INLINE inline void rb_rotate_left(rb_tree *tree, rb_node *node) {
-    rb_node *right  = node->R;
+#if 0
+// Red-Black Tree
+static void rb_rotate_left(rb_tree *tree, rb_node *node) {
+    rb_node *right = node->R;
+    assert(right, "Right must be valid.");
     rb_node *parent = GET_PARENT(node);
 
     if ((node->R = right->L))
@@ -89,7 +92,8 @@ static ALWAYS_INLINE inline void rb_rotate_left(rb_tree *tree, rb_node *node) {
 }
 
 static void rb_rotate_right(rb_tree *tree, rb_node *node) {
-    rb_node *left   = node->L;
+    rb_node *left = node->L;
+    assert(left, "Left must be valid.");
     rb_node *parent = GET_PARENT(node);
 
     if ((node->L = left->R))
@@ -137,7 +141,7 @@ static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
             BLACK(parent);
             RED(gparent);
             rb_rotate_right(tree, gparent);
-        } else {
+        } else if (parent == gparent->R) {
             {
                 rb_node *uncle = gparent->L;
                 if (uncle && GET_COLOR(uncle) == RB_RED) {
@@ -160,6 +164,8 @@ static void rb_insert_fixup(rb_tree *tree, rb_node *node) {
             BLACK(parent);
             RED(gparent);
             rb_rotate_left(tree, gparent);
+        } else {
+            kpanic("!");
         }
     }
 
@@ -345,4 +351,136 @@ void rb_replace(rb_node *old, rb_node *new) {
         SET_PARENT(new, parent);
     }
     SET_COLOR(new, color);
+}
+
+#else
+// normal BSTree here......
+
+rb_node *rb_insert(rb_tree *t, rb_node *n) {
+    n->L = n->R = NULL;
+    if (t->root == NULL) {
+        SET_PARENT(n, NULL);
+        t->root = n;
+    } else {
+        rb_node *y = NULL;
+        rb_node *x = t->root;
+        assert(t->root->key != 0xBABABABABABABABAL, "???");
+        while (x != NULL) {
+            y = x;
+            if (n->key == x->key)
+                return x;
+            else if (n->key < x->key)
+                x = x->L;
+            else
+                x = x->R;
+        }
+        SET_PARENT(n, y);
+        if (n->key > y->key)
+            y->R = n;
+        else
+            y->L = n;
+    }
+    return NULL;
+}
+
+void rb_remove(rb_tree *tree, rb_node *node) {
+    rb_node *parent = GET_PARENT(node);
+    if (!(node->L || node->R)) {
+        // is a leaf node, just delete it
+        if (parent) {
+            if (parent->R == node) {
+                parent->R = NULL;
+            } else if (parent->L == node) {
+                parent->L = NULL;
+            } else {
+                kpanic("noway.");
+            }
+        } else {
+            assert(tree->root == node, "Node have no parent but not the root.");
+            tree->root = NULL;
+        }
+        node->parent_and_color = 0;
+    } else if (node->L && node->R) {
+        // have two children, replace with the smallest node in right tree(succ)
+        rb_node *succ = rb_succ(node);
+        assert(!(succ->R || succ->L), "succ must be leaf.");
+        GET_PARENT(succ)->L = NULL;
+        succ->R             = node->R;
+        succ->L             = node->L;
+        SET_PARENT(succ, parent);
+        if (!parent) {
+            assert(tree->root == node, "Node have no parent but not the root.");
+            tree->root = succ;
+        }
+        node->L = node->R      = NULL;
+        node->parent_and_color = 0;
+    } else {
+        // have one child, replace me with child
+        rb_node *child;
+        if (node->L) {
+            child = node->L;
+        } else {
+            child = node->R;
+        }
+        assert(child, "No child?");
+        SET_PARENT(child, parent);
+        if (parent) {
+            if (parent->L == node)
+                parent->L = child;
+            else if (parent->R == node)
+                parent->R = child;
+            else
+                kpanic("Parent set but no child is us");
+        } else {
+            assert(tree->root == node, "Node have no parent but not the root.");
+            tree->root = child;
+        }
+        node->L = node->R      = NULL;
+        node->parent_and_color = 0;
+    }
+}
+
+void rb_replace(rb_tree *tree, rb_node *old, rb_node *new) {
+    assert(old->key == new->key, "Only nodes with same key could be replace.");
+    rb_node *parent = GET_PARENT(old);
+    if (old->L) {
+        new->L = old->L;
+        SET_PARENT(new->L, new);
+    }
+    if (old->R) {
+        new->R = old->R;
+        SET_PARENT(new->R, new);
+    }
+    if (parent) {
+        if (parent->L == old) {
+            parent->L = new;
+        } else if (parent->R == old) {
+            parent->R = new;
+        } else {
+            kpanic("Parent set but no child is us.");
+        }
+        SET_PARENT(new, parent);
+    } else {
+        assert(tree->root == old, "Old have no tree but not the root.");
+        tree->root = new;
+        SET_PARENT(new, NULL);
+    }
+}
+
+#endif
+
+void rb_validate(rb_node *node) {
+    rb_node *parent, *l, *r;
+    l      = node->L;
+    r      = node->R;
+    parent = GET_PARENT(node);
+    if (parent) {
+        if (!(parent->R == node || parent->L == node)) {
+            kpanic("RB Tree illegal.");
+        }
+    }
+    if (l)
+        rb_validate(l);
+    if (r)
+        rb_validate(r);
 }

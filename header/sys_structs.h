@@ -14,7 +14,7 @@ struct tms {
     uint64_t tms_cstime; /* system time of children */
 };
 
-#define SYS_NMLN 257
+#define SYS_NMLN 65
 struct utsname {
     char sysname[SYS_NMLN];  /* Operating system name (e.g., "Linux") */
     char nodename[SYS_NMLN]; /* Name within "some implementation-defined

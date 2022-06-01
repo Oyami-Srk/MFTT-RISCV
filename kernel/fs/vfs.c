@@ -126,6 +126,8 @@ dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
                     list_add(&r->d_subdirs_list, &cwd->d_subdirs);
                     par = r; */
 
+                    if (par->d_mount)
+                        dir_inode = par->d_mount->root;
                     if (!dir_inode || !dir_inode->i_op)
                         return NULL;
                     if (dir_inode->i_op->lookup) {
@@ -175,7 +177,11 @@ search:
         }
     }
     // not found
-    inode_t *dir_inode = parent->d_inode;
+    inode_t *dir_inode = NULL;
+    if (parent->d_mount)
+        dir_inode = parent->d_mount->root;
+    else
+        dir_inode = parent->d_inode;
     if (!dir_inode || !dir_inode->i_op)
         return NULL;
     if (dir_inode->i_op->lookup) {
@@ -205,17 +211,19 @@ char *vfs_get_dentry_fullpath(dentry_t *dent) {
     char *end = p;
     *(--p)    = '\0';
     // reverse build
-    do {
+    for (;;) {
         char *pp = dent->d_name;
         while (*(++pp) != '\0')
             ;
         while (pp > dent->d_name)
             *(--p) = *(--pp);
         dent = dent->d_parent;
+        if (!dent)
+            break;
         if ((dent->d_type == D_TYPE_DIR || dent->d_type == D_TYPE_MOUNTED) &&
             dent->d_name[0] != '/')
             *(--p) = '/';
-    } while (dent);
+    }
     // copy to head
     for (char *s = buf; p != end; *(s++) = (*p++))
         ;

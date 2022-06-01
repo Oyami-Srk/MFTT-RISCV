@@ -16,6 +16,7 @@
 #define DISK_DEVICE "/dev/sda"
 #endif
 
+#if 0
 int main() {
     printf("Hello world.!\n");
     int fd_disk = openat(0, DISK_DEVICE, 0, 0);
@@ -116,5 +117,157 @@ int main() {
         printf("ticks: %d.\n", ticks());
         sleep(2);
     }
+    return 0;
+}
+#endif
+
+static inline char char_upper(char c) {
+    return c - (c >= 'a' && c <= 'z' ? 32 : 0);
+}
+
+// turn normal fn into 8.3 one
+static void write_8_3_filename(char *fname, char *buffer) {
+    memset(buffer, ' ', 11);
+    uint32_t namelen = strlen((const char *)fname);
+    // find the extension
+    int i;
+    int dot_index = -1;
+    for (i = namelen - 1; i >= 0; i--) {
+        if (fname[i] == '.') {
+            // Found it!
+            dot_index = i;
+            break;
+        }
+    }
+
+    // Write the extension
+    if (dot_index >= 0) {
+        for (i = 0; i < 3; i++) {
+            uint32_t c_index = dot_index + 1 + i;
+            uint8_t  c = c_index >= namelen ? ' ' : char_upper(fname[c_index]);
+            buffer[8 + i] = c;
+        }
+    } else {
+        for (i = 0; i < 3; i++) {
+            buffer[8 + i] = ' ';
+        }
+    }
+
+    // Write the filename.
+    uint32_t firstpart_len = namelen;
+    if (dot_index >= 0) {
+        firstpart_len = dot_index;
+    }
+    if (firstpart_len > 8) {
+        // Write the weird tilde thing.
+        for (i = 0; i < 6; i++) {
+            buffer[i] = char_upper(fname[i]);
+        }
+        buffer[6] = '~';
+        buffer[7] = '1'; // probably need to enumerate like files and increment.
+    } else {
+        // Just write the file name.
+        uint32_t j;
+        for (j = 0; j < firstpart_len; j++) {
+            buffer[j] = char_upper(fname[j]);
+        }
+    }
+}
+
+void test_execve(const char *name, bool *meet) {
+    char *target = "getcwd";
+    if (*meet != true) {
+        if (strcmp(name, target) == 0)
+            *meet = true;
+        else
+            return;
+    }
+    int ret = fork();
+    if (ret == 0) {
+        char name_buffer[32];
+        write_8_3_filename((char *)name, name_buffer);
+        for (char *p = name_buffer; *p != '\0'; p++)
+            if (*p == ' ') {
+                *p = '\0';
+                break;
+            }
+        // child
+        const char *argv[] = {name, NULL};
+        const char *env[]  = {NULL};
+        printf("Try execve %s (FAT Name: %s).\n", name, name_buffer);
+        int r = execve(name_buffer, (char *const *)argv, (char *const *)env);
+        printf("Execve failed: %d.\n", r);
+        exit(r);
+    } else if (ret > 0) {
+        // parent
+        int status;
+        int pid = wait4(WAIT_ANY, &status, 0);
+        printf("PID %d exited with status %d.\n", pid, status);
+    } else {
+        printf("!!!!Error while fork.\n");
+    }
+}
+
+int main() {
+    char      buffer[512];
+    char      dent_buffer[64];
+    dirent_t *dent = (dirent_t *)dent_buffer;
+    bool      meet = false;
+    // TODO: exec a shell and initscript. IMPORTANT!!
+    int parent_fd = openat(AT_FDCWD, "/", 0, 0);
+    if (parent_fd < 0) {
+        printf("Failed open root.\n");
+    } else {
+        if (mkdirat(parent_fd, "mnt", 0) != 0) {
+            printf("Failed to mkdir /mnt.\n");
+        } else {
+            int mnt = openat(AT_FDCWD, "/mnt", 0, 0);
+            if (mnt) {
+                if (mount(DISK_DEVICE, "/mnt", "fat32", 0, NULL) != 0)
+                    printf("Cannot mount " DISK_DEVICE " to /mnt.\n");
+                else {
+                    printf("Try chdir.\n");
+                    chdir("/mnt/RISCV64");
+                    int cwd = openat(AT_FDCWD, ".", 0, 0);
+                    while (getdents64(cwd, dent, 64) != 0) {
+                        printf("%c: %s\n", dent->d_type, dent->d_name);
+                    }
+                    int disk_fd = openat(AT_FDCWD, "RUN-ALL.SH", 0, 0);
+                    if (disk_fd < 0)
+                        printf("Open RUN_ALL.SH failed.\n");
+                    else {
+                        int   bytes = read(disk_fd, buffer, 512);
+                        char  line[32];
+                        char *p = line;
+                        for (int i = 0; i <= bytes; i++) {
+                            if (buffer[i] == '\n') {
+                                *p = '\0';
+                                if (!(line[0] == '#' || line[0] == ' ' ||
+                                      line[0] == '\0')) {
+                                    if (line[0] == '"')
+                                        break;
+                                    if (line[strlen(line) - 1] != '"') {
+                                        if (strcmp(".sh", line + strlen(line) -
+                                                              3) == 0) {
+                                            printf("Shell script.\n");
+                                        } else {
+                                            test_execve(line, &meet);
+                                        }
+                                    }
+                                }
+                                p = line;
+                            } else if (buffer[i] == '\0') {
+                                break;
+                            } else {
+                                *p++ = buffer[i];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (;;)
+        sleep(1000000000);
     return 0;
 }

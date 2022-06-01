@@ -141,6 +141,9 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
     // close file
     vfs_close(f);
 
+    // copy exec name
+    strcpy(old->name, dentry->d_name);
+
     // let it go
     old->status = PROC_STATUS_READY | PROC_STATUS_NORMAL;
 

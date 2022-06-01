@@ -119,7 +119,8 @@ struct __proc_t {
     char  *prog_break;       // in va, not contains end
     char  *prog_brk_pg_end;
     // File table
-#define MAX_FILE_OPEN 32
+    //#define MAX_FILE_OPEN 32
+#define MAX_FILE_OPEN 128
     // 0 - stdin, 1 - stdout, 2 - stderr
     file_t   *files[MAX_FILE_OPEN];
     dentry_t *cwd;
@@ -142,12 +143,12 @@ void    set_proc(pid_t pid, proc_t *proc);
 void sleep(void *chan, spinlock_t *lock);
 void wakeup(void *chan);
 
-int  do_fork(proc_t *parent);
-int  do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
-               const char *env[]);
-int  do_brk(proc_t *proc, uintptr_t addr);
-void do_exit(proc_t *proc, int ec);
-pid_t do_wait(pid_t waitfor, int *status, int options);
+int do_fork(proc_t *parent, char *child_stack);
+int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
+              const char *env[]);
+uintptr_t do_brk(proc_t *proc, uintptr_t addr);
+void      do_exit(proc_t *proc, int ec);
+pid_t     do_wait(pid_t waitfor, int *status, int options);
 
 /* Note:
  *

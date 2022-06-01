@@ -248,6 +248,7 @@ sysret_t sys_getdents64(struct trap_context *trapframe) {
         if (vfs_read_dir(f, &ctx) < 0)
             break; // no more ent
         size_t namelen = strlen(ctx.d_name);
+
         if (ROUNDUP_WITH(sizeof(uint32_t), p + sizeof(dirent_t) + namelen) >=
             (uintptr_t)end_kbuf) {
             f->f_fs_data = prev_fs_data;
@@ -273,7 +274,7 @@ sysret_t sys_getdents64(struct trap_context *trapframe) {
         }
         strcpy(d->d_name, ctx.d_name);
         p += sizeof(dirent_t) + namelen;
-        p = (char *)ROUNDUP_WITH(sizeof(uint32_t), p);
+        p = (char *)ROUNDUP_WITH(sizeof(uint64_t), p);
     }
     size_t sz_read = p - kbuf;
     umemcpy(dirent, kbuf, sz_read);

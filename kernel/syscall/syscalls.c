@@ -15,6 +15,8 @@
 
 // Syscall is running in proc context with S-privilge
 
+#define TRACE_SYSCALL 0
+
 // SYS_ticks: 返回系统节拍器时间
 sysret_t sys_ticks(struct trap_context *trapframe) {
     uint64_t ret;
@@ -160,7 +162,7 @@ sysret_t sys_clone(struct trap_context *trapframe) {
     int   ctid  = (int)trapframe->a4;
     if (flags == SIGCHLD) {
         proc_t *parent = myproc();
-        return do_fork(parent);
+        return do_fork(parent, stack);
     } else {
         // TODO: impl this
     }
@@ -291,13 +293,18 @@ sysret_t sys_execve(struct trap_context *trapframe) {
     char *const *argv = (char *const *)trapframe->a1;
     char *const *envp = (char *const *)trapframe->a2;
 
+    int argc = 0;
+    int envc = 0;
     BEGIN_UMEM_ACCESS();
-    int    argc  = count_strs((const char **)argv);
-    int    envc  = count_strs((const char **)envp);
+    if (argv)
+        argc = count_strs((const char **)argv);
+    if (envp)
+        envc = count_strs((const char **)envp);
     char **kargv = (char **)kmalloc(sizeof(char *) * (argc + 1));
     char **kenvp = (char **)kmalloc(sizeof(char *) * (envc + 1));
     assert(kargv, "out of memory.");
     assert(kenvp, "out of memory.");
+
     kargv[argc] = kenvp[envc] = NULL;
     for (int i = 0; i < argc; i++) {
         kargv[i] = ustrcpy_out(argv[i]);
@@ -306,6 +313,7 @@ sysret_t sys_execve(struct trap_context *trapframe) {
         kenvp[i] = ustrcpy_out(envp[i]);
     }
     STOP_UMEM_ACCESS();
+
     // do execve
     int r = do_execve(myproc(), myproc()->cwd, path, (const char **)kargv,
                       (const char **)kenvp);
@@ -320,6 +328,8 @@ sysret_t sys_execve(struct trap_context *trapframe) {
     kfree(kargv);
     kfree((char *)path);
     // return argc
+    if (r < 0)
+        return r;
     assert(r == argc, "argc not identical while do_execve.");
     return r;
 }
@@ -342,7 +352,8 @@ sysret_t sys_wait(struct trap_context *trapframe) {
     int   options  = (int)trapframe->a2;
     int   k_status = 0;
     pid_t r        = do_wait(waitfor, &k_status, options);
-    umemcpy(u_status, &k_status, sizeof(int));
+    if (u_status)
+        umemcpy(u_status, &k_status, sizeof(int));
     return r;
 }
 
@@ -367,12 +378,20 @@ sysret_t sys_getcwd(struct trap_context *trapframe) {
     char  *ubuf = (char *)trapframe->a0;
     size_t size = (size_t)trapframe->a1;
 
-    char  *kbuf = vfs_get_dentry_fullpath(myproc()->cwd);
-    size_t len  = strlen(kbuf) + 1;
+    proc_t *proc = myproc();
+    char   *kbuf = vfs_get_dentry_fullpath(proc->cwd);
+    size_t  len  = strlen(kbuf) + 1;
     if (size < len)
         return (sysret_t)NULL; // buffer to small
     else {
-        umemcpy(ubuf, kbuf, len);
+        if (ubuf)
+            umemcpy(ubuf, kbuf, len);
+        else {
+            // alloc by our
+            char *old_brk = (char *)ROUNDUP_WITH(8, proc->prog_break);
+            do_brk(proc, ROUNDUP_WITH(8, old_brk + len));
+            umemcpy(old_brk, kbuf, len);
+        }
         kfree(kbuf);
         return (sysret_t)ubuf;
     }
@@ -570,7 +589,11 @@ void do_syscall(struct trap_context *trapframe) {
         return;
     }
     // TODO: strace
-    // kprintf("========> %s\n", syscall_names[syscall_id]);
+#if TRACE_SYSCALL
+    proc_t *proc = myproc();
+    kprintf("\n;;;;;;;; Proc [%d]%s Call %s\n", proc->pid, proc->name,
+            syscall_names[syscall_id]);
+#endif
     sysret_t ret  = syscall_table[syscall_id](trapframe);
     trapframe->a0 = ret;
 }

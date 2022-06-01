@@ -42,6 +42,7 @@ void setup_init_process() {
     proc->trapframe.sp = (uintptr_t)PROC_STACK_BASE;
     proc->stack_bottom = (char *)PROC_STACK_BASE;
     proc->stack_top    = process_stack_top;
+    strcpy(proc->name, "init");
 
     proc->status |= PROC_STATUS_READY;
 

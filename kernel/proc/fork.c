@@ -8,7 +8,9 @@
 #include <proc.h>
 #include <trap.h>
 
-int do_fork(proc_t *parent) {
+// TODO: impl clone
+
+int do_fork(proc_t *parent, char *child_stack) {
     spinlock_acquire(&parent->lock);
     if (parent->status & PROC_STATUS_RUNNING) {
         parent->status &= ~PROC_STATUS_RUNNING;
@@ -62,7 +64,17 @@ int do_fork(proc_t *parent) {
     // trap_context));
     child->trapframe = parent->trapframe;
 
+    // fork name
+    strcpy(child->name, parent->name);
+    size_t len = 0xFFFF;
+    if ((len = strlen(child->name)) < PROC_NAME_SIZE - 4) {
+        // TODO: increment child count.
+        strcpy(child->name + len, "-1");
+    }
+
     child->trapframe.a0 = 0;
+    if (child_stack)
+        child->trapframe.sp = (uintptr_t)child_stack;
     spinlock_release(&child->lock);
     spinlock_release(&parent->lock);
     // parent yield

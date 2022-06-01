@@ -56,9 +56,9 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         started = 1;
     } else {
         // Salve cores
-        init_trap();
         while (!started)
             ;
+        init_trap();
     }
 
     // kprintf("[%d] Initialization complete, start running.\n", cpuid());

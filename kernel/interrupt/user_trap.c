@@ -44,9 +44,13 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
             }
         } else {
             exception_panic(scause, stval, sepc, sstatus, &proc->trapframe);
+            /*
             while (1)
                 ;
-            SBI_ext_srst();
+            SBI_ext_srst(); */
+            if (proc) {
+                do_exit(proc, -1);
+            }
         }
     }
     user_trap_return();

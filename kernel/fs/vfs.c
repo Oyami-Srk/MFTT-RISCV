@@ -104,8 +104,9 @@ dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name) {
             } else if (dname[0] == '\0' || strcmp(".", dname) == 0) {
                 // skip
             } else {
+                bool found;
             search:
-                bool found = false;
+                found = false;
                 list_foreach_entry(&par->d_subdirs, dentry_t, d_subdirs_list,
                                    dir) {
                     if (strcmp(dname, dir->d_name) == 0) {

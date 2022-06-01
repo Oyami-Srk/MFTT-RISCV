@@ -226,7 +226,11 @@ int main() {
                 if (mount(DISK_DEVICE, "/mnt", "fat32", 0, NULL) != 0)
                     printf("Cannot mount " DISK_DEVICE " to /mnt.\n");
                 else {
-                    printf("Try chdir.\n");
+                    printf("List /mnt:\n");
+                    while (getdents64(mnt, dent, 64) != 0) {
+                        printf("%c: %s\n", dent->d_type, dent->d_name);
+                    }
+                    printf("\nList /mnt/riscv64:\n");
                     chdir("/mnt/RISCV64");
                     int cwd = openat(AT_FDCWD, ".", 0, 0);
                     while (getdents64(cwd, dent, 64) != 0) {

@@ -60,8 +60,8 @@ static inline void SBI_set_timer(uint64_t timer_value) {
     SBI_call(SBI_SET_TIMER, timer_value, 0, 0, 0);
 }
 // TODO: Check latest opensbi doc, this is replaced by a new send_ipi
-static inline void SBI_send_ipi(uint64_t hart_mask, uint64_t hart_mask_base) {
-    SBI_call(SBI_SEND_IPI, hart_mask, hart_mask_base, 0, 0);
+static inline void SBI_send_ipi(uint64_t *hart_mask) {
+    SBI_call(SBI_SEND_IPI, hart_mask, 0, 0, 0);
 }
 
 static inline void SBI_set_mie() { SBI_call(SBI_SET_MIE, 0, 0, 0, 0); }

@@ -45,6 +45,14 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             kpanic("Devices' driver cannot be initialized. Code: %d", ret);
 
         init_proc();
+#ifdef PLATFORM_K210
+        // K210 require a ignite for other core to boot.
+        for (int i = 0; i < MAX_CPUS; i++) {
+            uint64_t mask = 1 << i;
+            SBI_send_ipi(&mask);
+        }
+        __sync_synchronize();
+#endif
         started = 1;
     } else {
         // Salve cores
@@ -53,7 +61,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             ;
     }
 
-    kprintf("[%d] Initialization complete, start running.\n", cpuid());
+    // kprintf("[%d] Initialization complete, start running.\n", cpuid());
     assert(mycpu()->trap_off_depth == 0, "CPU enter scheduler with trap off.");
     // pre-CPU process runner
     while (1) {

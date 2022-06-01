@@ -230,17 +230,12 @@ int main() {
                     while (getdents64(mnt, dent, 64) != 0) {
                         printf("%c: %s\n", dent->d_type, dent->d_name);
                     }
-                    printf("\nList /mnt/riscv64:\n");
-                    chdir("/mnt/RISCV64");
-                    int cwd = openat(AT_FDCWD, ".", 0, 0);
-                    while (getdents64(cwd, dent, 64) != 0) {
-                        printf("%c: %s\n", dent->d_type, dent->d_name);
-                    }
-                    int disk_fd = openat(AT_FDCWD, "RUN-ALL.SH", 0, 0);
-                    if (disk_fd < 0)
+                    chdir("/mnt");
+                    int sh_fd = openat(AT_FDCWD, "RUN-ALL.SH", 0, 0);
+                    if (sh_fd < 0)
                         printf("Open RUN_ALL.SH failed.\n");
                     else {
-                        int   bytes = read(disk_fd, buffer, 512);
+                        int   bytes = read(sh_fd, buffer, 512);
                         char  line[32];
                         char *p = line;
                         for (int i = 0; i <= bytes; i++) {

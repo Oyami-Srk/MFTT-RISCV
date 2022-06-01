@@ -15,11 +15,7 @@ else
 	BIN_OFFSET:=131072
 endif
 
-ifeq (, $(shell which riscv64-unknown-elf 2>/dev/null))
-	TOOLCHAIN_PREFIX:=riscv64-elf-
-else
-	TOOLCHAIN_PREFIX:=riscv64-unknown-elf-
-endif
+TOOLCHAIN_PREFIX?=riscv64-unknown-elf-
 
 PROJ_ROOT:=$(shell pwd)
 BUILD_DIR:=${PROJ_ROOT}/build

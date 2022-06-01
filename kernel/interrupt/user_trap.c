@@ -48,6 +48,7 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
             while (1)
                 ;
             SBI_ext_srst(); */
+            kprintf("Kill process [%d]%s.\n", proc->pid, proc->name);
             if (proc) {
                 do_exit(proc, -1);
             }

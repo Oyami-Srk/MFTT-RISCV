@@ -2,32 +2,32 @@
 // Created by shiroko on 22-5-20.
 //
 
-#include <types.h>
 #include <lib/stdlib.h>
 #include <lib/string.h>
 #include <memory.h>
 #include <riscv.h>
+#include <types.h>
 
 #define KERNEL_MEM_START 0x80000000
 
-static ALWAYS_INLINE inline void *memcpy_sum_enable(void *dst, const void *src,
-                                                    size_t size) {
-    CSR_RWOR(sstatus, SSTATUS_SUM);
+static ALWAYS_INLINE inline void *umem_access_memcpy(void *dst, const void *src,
+                                                     size_t size) {
+    BEGIN_UMEM_ACCESS();
     void *r = memcpy(dst, src, size);
-    CSR_RWAND(sstatus, ~SSTATUS_SUM);
+    STOP_UMEM_ACCESS();
     return r;
 }
 
 static void *memcpy_k2u(void *dst, const void *src, size_t size) {
-    memcpy_sum_enable(dst, src, size);
+    umem_access_memcpy(dst, src, size);
 }
 
 static void *memcpy_u2k(void *dst, const void *src, size_t size) {
-    memcpy_sum_enable(dst, src, size);
+    umem_access_memcpy(dst, src, size);
 }
 
 static void *memcpy_u2u(void *dst, const void *src, size_t size) {
-    memcpy_sum_enable(dst, src, size);
+    umem_access_memcpy(dst, src, size);
 }
 
 void *umemcpy(void *dst, const void *src, size_t size) {
@@ -53,14 +53,14 @@ void *umemcpy(void *dst, const void *src, size_t size) {
 }
 
 void *umemset(void *dst, char c, size_t size) {
-    CSR_RWOR(sstatus, SSTATUS_SUM);
+    BEGIN_UMEM_ACCESS();
     assert((uintptr_t)dst < KERNEL_MEM_START, "umemset set kernel memory.");
     memset(dst, 0, size);
-    CSR_RWAND(sstatus, ~SSTATUS_SUM);
+    STOP_UMEM_ACCESS();
 }
 
 char *ustrcpy_out(char *ustr) {
-    CSR_RWOR(sstatus, SSTATUS_SUM);
+    BEGIN_UMEM_ACCESS();
     size_t len = strlen(ustr);
     assert((uintptr_t)ustr + len + 1 < KERNEL_MEM_START, "user str execeed.");
     char *kbuf = (char *)kmalloc(len + 1);
@@ -68,7 +68,7 @@ char *ustrcpy_out(char *ustr) {
         return NULL;
     memcpy(kbuf, ustr, len);
     kbuf[len] = '\0';
-    CSR_RWAND(sstatus, ~SSTATUS_SUM);
+    STOP_UMEM_ACCESS();
     return kbuf;
 }
 

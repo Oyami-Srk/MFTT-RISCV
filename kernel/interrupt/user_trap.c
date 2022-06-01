@@ -20,6 +20,7 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
     uint64_t stval   = CSR_Read(stval);
     uint64_t sepc    = CSR_Read(sepc);
     uint64_t sstatus = CSR_Read(sstatus);
+    uint64_t satp    = CSR_Read(satp);
 
     if (scause & XCAUSE_INT) {
         // interrupt

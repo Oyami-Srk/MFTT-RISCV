@@ -250,10 +250,13 @@ int do_pagefault(char *caused_va, pde_t pde, bool from_kernel) {
         return -1;
     // kprintf("PF pa: 0x%lx, reference count: %d.\n", pa,
     //        get_page_reference(&memory_info, pa));
-    if (from_kernel && (CSR_Read(sstatus) & SSTATUS_SUM) == 0) {
-        CSR_RWOR(sstatus, SSTATUS_SUM);
+
+    // FIXME: That is not good, we should shorten the access to umem.
+    if (from_kernel && !IS_UMEM_ACCESS()) {
+        BEGIN_UMEM_ACCESS();
         return 0;
     }
+
     uint8_t type = pte->fields.Type;
     if (type & PTE_TYPE_BIT_W) {
         kprintf("PF invailed.\n");

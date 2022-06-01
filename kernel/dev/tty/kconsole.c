@@ -7,6 +7,8 @@
 
 static spinlock_t kprintf_lock = {.lock = false, .cpu = 0};
 
+void init_kprintf() { spinlock_init(&kprintf_lock); }
+
 void kprintf(const char *fmt, ...) {
     spinlock_acquire(&kprintf_lock);
     int         i;

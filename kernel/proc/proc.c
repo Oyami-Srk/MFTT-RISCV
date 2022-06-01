@@ -78,6 +78,7 @@ proc_t *proc_alloc() {
     }
     // proc = &os_env.proc[pid];
     proc = (proc_t *)kmalloc(sizeof(proc_t));
+    memset(proc, 0, sizeof(proc_t));
     spinlock_init(&proc->lock);
     os_env.proc_count++;
     list_add(&proc->proc_list, &os_env.procs);

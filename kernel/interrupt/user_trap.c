@@ -40,7 +40,13 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
                     (char *)stval,
                     (pde_t)((CSR_Read(satp) & 0xFFFFFFFFFFF) << PG_SHIFT),
                     false) != 0) {
-                kpanic("do page fault failed.\n");
+                kprintf("do page fault failed.\n");
+
+                exception_panic(scause, stval, sepc, sstatus, &proc->trapframe);
+                kprintf("Kill process [%d]%s.\n", proc->pid, proc->name);
+                if (proc) {
+                    do_exit(proc, -1);
+                }
             }
         } else {
             exception_panic(scause, stval, sepc, sstatus, &proc->trapframe);

@@ -16,8 +16,8 @@ char *itoa(long long value, char *str, int base) {
     do {
         *ptr++ =
             "ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210123456789ABCDEFGHIJKLMNOPQRST"
-            "UVWXYZ"[35 + value % base];
-        value /= base;
+            "UVWXYZ"[35 + (uintptr_t)value % base];
+        value = (typeof(value))(((uintptr_t)value) / base);
     } while (value);
     *ptr-- = '\0';
     while (low < ptr) {

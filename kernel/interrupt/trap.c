@@ -3,6 +3,7 @@
 #include <driver/console.h>
 #include <environment.h>
 #include <lib/stdlib.h>
+#include <lib/string.h>
 #include <lib/sys/SBI.h>
 #include <memory.h>
 #include <riscv.h>
@@ -43,17 +44,31 @@ void trap_pop_off() {
 
 static bool exception_lock = false;
 
-static void printf_nolock(const char *fmt, ...) {
-    int         i;
-    static char buf[512];
-    va_list     arg;
-    va_start(arg, fmt);
-    i       = vsprintf(buf, fmt, arg);
-    buf[i]  = 0;
-    char *s = buf;
+static inline void put_char(const char c) { SBI_putchar(c); }
+
+static inline void put_str(const char *s) {
     while (*s != '\0')
-        SBI_putchar(*(s++));
+        put_char(*(s++));
 }
+
+static inline void put_str_aligned(const char *s, int align) {
+    size_t len = strlen(s);
+    if (len < align)
+        while (align - (len++))
+            put_char(' ');
+    put_str(s);
+}
+
+#define PRINT_HEX_ALIGN(name, x, terminator, align)                            \
+    do {                                                                       \
+        char buffer[32] = {[0] = '0', [1] = 'x', [2 ... 31] = 0};              \
+        put_str_aligned(name ": ", 7);                                         \
+        itoa((long long)(x), buffer + 2, 16);                                  \
+        put_str_aligned(buffer, align);                                        \
+        put_char((terminator));                                                \
+    } while (0)
+
+#define PRINT_HEX(name, x, terminator) PRINT_HEX_ALIGN(name, x, terminator, 18);
 
 static const char *exception_description[] = {
     "Instruction address misaligned.",
@@ -75,40 +90,40 @@ static const char *exception_description[] = {
 };
 
 void dump_trapframe(struct trap_context *tf) {
-    printf_nolock("   ra: %18lp\t", tf->ra);
-    printf_nolock("   sp: %18lp\n", tf->sp);
-    printf_nolock("   gp: %18lp\t", tf->gp);
-    printf_nolock("   tp: %18lp\n", tf->tp);
+    PRINT_HEX("ra", tf->ra, '\t');
+    PRINT_HEX("sp", tf->sp, '\n');
+    PRINT_HEX("gp", tf->gp, '\t');
+    PRINT_HEX("tp", tf->tp, '\n');
 
-    printf_nolock("   a0: %18lp\t", tf->a0);
-    printf_nolock("   a1: %18lp\n", tf->a1);
-    printf_nolock("   a2: %18lp\t", tf->a2);
-    printf_nolock("   a3: %18lp\n", tf->a3);
-    printf_nolock("   a4: %18lp\t", tf->a4);
-    printf_nolock("   a5: %18lp\n", tf->a5);
-    printf_nolock("   a6: %18lp\t", tf->a6);
-    printf_nolock("   a7: %18lp\n", tf->a7);
+    PRINT_HEX("a0", tf->a0, '\t');
+    PRINT_HEX("a1", tf->a1, '\n');
+    PRINT_HEX("a2", tf->a2, '\t');
+    PRINT_HEX("a3", tf->a3, '\n');
+    PRINT_HEX("a4", tf->a4, '\t');
+    PRINT_HEX("a5", tf->a5, '\n');
+    PRINT_HEX("a6", tf->a6, '\t');
+    PRINT_HEX("a7", tf->a7, '\n');
 
-    printf_nolock("   t0: %18lp\t", tf->t0);
-    printf_nolock("   t1: %18lp\n", tf->t1);
-    printf_nolock("   t2: %18lp\t", tf->t2);
-    printf_nolock("   t3: %18lp\n", tf->t3);
-    printf_nolock("   t4: %18lp\t", tf->t4);
-    printf_nolock("   t5: %18lp\n", tf->t5);
-    printf_nolock("   t6: %18lp\n", tf->t6);
+    PRINT_HEX("t0", tf->t0, '\t');
+    PRINT_HEX("t1", tf->t1, '\n');
+    PRINT_HEX("t2", tf->t2, '\t');
+    PRINT_HEX("t3", tf->t3, '\n');
+    PRINT_HEX("t4", tf->t4, '\t');
+    PRINT_HEX("t5", tf->t5, '\n');
+    PRINT_HEX("t6", tf->t6, '\n');
 
-    printf_nolock("   s0: %18lp\t", tf->s0);
-    printf_nolock("   s1: %18lp\n", tf->s1);
-    printf_nolock("   s2: %18lp\t", tf->s2);
-    printf_nolock("   s3: %18lp\n", tf->s3);
-    printf_nolock("   s4: %18lp\t", tf->s4);
-    printf_nolock("   s5: %18lp\n", tf->s5);
-    printf_nolock("   s6: %18lp\t", tf->s6);
-    printf_nolock("   s7: %18lp\n", tf->s7);
-    printf_nolock("   s8: %18lp\t", tf->s8);
-    printf_nolock("   s9: %18lp\n", tf->s9);
-    printf_nolock("  s10: %18lp\t", tf->s10);
-    printf_nolock("  s11: %18lp\n", tf->s11);
+    PRINT_HEX("s0", tf->s0, '\t');
+    PRINT_HEX("s1", tf->s1, '\n');
+    PRINT_HEX("s2", tf->s2, '\t');
+    PRINT_HEX("s3", tf->s3, '\n');
+    PRINT_HEX("s4", tf->s4, '\t');
+    PRINT_HEX("s5", tf->s5, '\n');
+    PRINT_HEX("s6", tf->s6, '\t');
+    PRINT_HEX("s7", tf->s7, '\n');
+    PRINT_HEX("s8", tf->s8, '\t');
+    PRINT_HEX("s9", tf->s9, '\n');
+    PRINT_HEX("s10", tf->s10, '\t');
+    PRINT_HEX("s11", tf->s11, '\n');
 }
 
 static inline int exception_try_lock() {
@@ -131,16 +146,16 @@ static inline void lock_exception() {
 }
 
 void print_sstatus(uint64_t sstatus) {
-    printf_nolock("sstatus: ");
+    put_str("sstatus: ");
     bool p = false;
 #define PRINT(x)                                                               \
     do {                                                                       \
         if (sstatus & SSTATUS_##x) {                                           \
             if (p == true)                                                     \
-                printf_nolock("|");                                            \
+                put_str("|");                                                  \
             else                                                               \
                 p = true;                                                      \
-            printf_nolock(#x);                                                 \
+            put_str(#x);                                                       \
         }                                                                      \
     } while (0)
     PRINT(UIE);
@@ -156,11 +171,16 @@ void print_sstatus(uint64_t sstatus) {
 #endif
     PRINT(SD);
 #define V(x) ((sstatus >> SSTATUS_##x##_SHIFT) & 0x3)
-    printf_nolock("    FS: %d, XS: %d", V(FS), V(XS));
+    put_str("    FS: ");
+    put_char(V(FS) + '0');
+    put_str(", XS: ");
+    put_char(V(XS) + '0');
 #if PLATFORM_QEMU
-    printf_nolock(", UXL: %d.\n", V(UXL));
+    put_str(", UXL: ");
+    put_char(V(UXL) + '0');
+    put_char('\n');
 #else
-    printf_nolock(".\n");
+    put_char('\n');
 #endif
 }
 
@@ -169,28 +189,65 @@ void exception_panic(uint64_t scause, uint64_t stval, uint64_t sepc,
     disable_trap();
     // lock
     lock_exception();
+    uint64_t cpu = cpuid();
+    put_str("\n\n====================CPU ");
+    put_char(cpu + '0');
+    put_str("=======================\n\n");
 
-    printf_nolock("\n\n====================CPU %d=======================\n\n",
-                  cpuid());
-    printf_nolock("Exception %d: %s\n", scause,
-                  scause < 16 ? exception_description[scause]
-                              : exception_description[4]);
-    proc_t *proc = os_env.cpus[cpuid()].proc;
+    put_str("Exception ");
+    do {
+        char buffer[32] = {[0 ... 31] = 0};
+        itoa((long long)scause, buffer, 10);
+        put_str(buffer);
+    } while (0);
+    put_str(": ");
+    if (scause < 16) {
+        put_str(exception_description[scause]);
+    } else {
+        put_str(exception_description[4]);
+    }
+    put_char('\n');
+
+    proc_t *proc = os_env.cpus[cpu].proc;
     if (proc) {
-        printf_nolock("In Process: %d.\n", proc->pid);
+        put_str("Happend with process [");
+        put_char(proc->pid + '0');
+        put_char(']');
+        put_str(proc->name);
+        put_char('\n');
     }
     print_sstatus(sstatus);
-    printf_nolock(" sepc: %18lp\tstval: %18lp\n", sepc, stval);
+
+    PRINT_HEX("sepc", sepc, '\t');
+    PRINT_HEX("stval", stval, '\n');
+
     dump_trapframe(trapframe);
-    printf_nolock("KERN_BASE: %lp\tKERN_END: %lp\n", KERN_BASE, KERN_END);
-    printf_nolock("Kernel Page Dir: %lp\n", os_env.kernel_pagedir);
-    printf_nolock("Kernel Stack: %lp ~ %lp\nKernel Code: %lp ~ %lp\n",
-                  os_env.kernel_boot_stack, os_env.kernel_boot_stack_top,
-                  KERN_CODE_START, KERN_CODE_END);
-    printf_nolock("Env Guard: %lp, %lp\n", os_env.begin_gaurd,
-                  os_env.end_gaurd);
-    printf_nolock("\n================================================\n\n",
-                  cpuid());
+    PRINT_HEX_ALIGN("KERN_BASE", KERN_BASE, '\t', 0);
+    PRINT_HEX_ALIGN("KERN_END", KERN_END, '\n', 0);
+    PRINT_HEX_ALIGN("Kernel Page Dir", os_env.kernel_pagedir, '\n', 0);
+    do {
+        put_str("Kernel Stack: 0x");
+        char buffer[32] = {[0 ... 31] = 0};
+        itoa((long long)os_env.kernel_boot_stack, buffer, 16);
+        put_str(buffer);
+        put_str(" ~ 0x");
+        itoa((long long)os_env.kernel_boot_stack_top, buffer, 16);
+        put_str(buffer);
+        put_str("\n");
+
+        put_str("Kernel Code: 0x");
+        itoa((long long)KERN_CODE_START, buffer, 16);
+        put_str(buffer);
+        put_str(" ~ 0x");
+        itoa((long long)KERN_CODE_END, buffer, 16);
+        put_str(buffer);
+        put_str("\n");
+    } while (0);
+
+    PRINT_HEX_ALIGN("Env Canary Begin", os_env.begin_gaurd, '\n', 0);
+    PRINT_HEX_ALIGN("Env Canary End", os_env.end_gaurd, '\n', 0);
+
+    put_str("\n================================================\n\n");
     // release lock
     RISCV_FENCE(rw, w);
     WRITE_ONCE(exception_lock, 0);

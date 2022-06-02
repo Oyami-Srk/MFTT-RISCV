@@ -34,6 +34,9 @@ int do_fork(proc_t *parent, char *child_stack) {
     child->prog_image_start = parent->prog_image_start;
     child->prog_size        = parent->prog_size;
     child->prog_break       = parent->prog_break;
+    // fork proc stack info
+    child->stack_top    = parent->stack_top;
+    child->stack_bottom = parent->stack_bottom;
 
     // dup file table
     for (int fp = 3; fp < MAX_FILE_OPEN; fp++) {

@@ -359,6 +359,9 @@ sysret_t sys_wait(struct trap_context *trapframe) {
 }
 
 sysret_t sys_sched_yield(struct trap_context *trapframe) {
+    proc_t *proc = myproc();
+    proc->status &= ~PROC_STATUS_RUNNING;
+    proc->status |= PROC_STATUS_READY;
     yield();
     return 0;
 }

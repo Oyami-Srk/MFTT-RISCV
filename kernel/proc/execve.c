@@ -59,6 +59,8 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
         memcpy(sp, e, len + 1);
     }
     char *head_of_envp = sp;
+    sp = (char *)ROUNDDOWN_WITH(sizeof(uint64_t), sp); // align sp
+
     // setup stack for argv
     for (int i = argc - 1; i >= 0; i--) {
         const char *e   = argv[i];
@@ -85,6 +87,7 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
             envp[i]         = envp[i - 1] + len + 1;
         }
     }
+    size_t offset_envp = stack_bottom - sp;
 
     // setup argv
     sp -= sizeof(char *) * (argc + 1);
@@ -101,8 +104,33 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
             argvp[i]        = argvp[i - 1] + len + 1;
         }
     }
-
-    size_t offset_sp = stack_bottom - sp;
+    size_t offset_argv = stack_bottom - sp;
+    char  *envp_va     = (char *)(PROC_STACK_SIZE - offset_envp);
+    char  *argv_va     = (char *)(PROC_STACK_SIZE - offset_argv);
+    /* stack is like:
+     * |  0x80000000  | <--- Stack base
+     * +--------------+
+     * | env strings  |
+     * |    padding   |
+     * | arg strings  |
+     * |    padding   |
+     * +--------------+
+     * |  envp table  |
+     * |  argv table  |
+     * +--------------+ <--- we are here
+     * |     envp     |
+     * |     argv     |
+     * |     argc     |
+     * +--------------+
+     * |      sp      | <--- user stack top
+     */
+    // push envp, argv, argc
+    sp -= sizeof(uintptr_t);
+    *((uintptr_t *)sp) = (uintptr_t)envp;
+    sp -= sizeof(uintptr_t);
+    *((uintptr_t *)sp) = (uintptr_t)argv;
+    sp -= sizeof(uintptr_t);
+    *((uintptr_t *)sp) = (uintptr_t)argc;
 
     // free old process's pages
     spinlock_acquire(&old->lock);
@@ -129,8 +157,10 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
               PROC_STACK_SIZE, PTE_TYPE_RW, true, false);
 
     old->trapframe.sp = ROUNDDOWN_WITH(
-        sizeof(uintptr_t), (uintptr_t)(PROC_STACK_BASE - offset_sp));
-    old->trapframe.a1 = (uintptr_t)(PROC_STACK_SIZE - offset_sp);
+        sizeof(uintptr_t), (uintptr_t)(PROC_STACK_BASE - (stack_bottom - sp)));
+    // These are riscv call convention
+    old->trapframe.a1 = (uintptr_t)(argv_va);
+    old->trapframe.a2 = (uintptr_t)(envp_va);
 
     old->stack_bottom = (char *)PROC_STACK_BASE;
     old->stack_top    = process_stack_top;

@@ -43,7 +43,7 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
             }
         } else {
         exception:
-            exception_panic(scause, stval, sepc, sstatus, tf);
+            // exception_panic(scause, stval, sepc, sstatus, tf);
             while (1)
                 ;
             SBI_ext_srst();

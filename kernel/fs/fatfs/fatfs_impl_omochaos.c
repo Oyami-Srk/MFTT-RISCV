@@ -443,6 +443,7 @@ static int read(file_t *file, char *buffer, size_t offset, size_t len) {
     }
     return len;
 }
+
 static int write(file_t *file, const char *buffer, size_t offset, size_t len) {
     return 0;
 }
@@ -450,6 +451,14 @@ static int close(file_t *file) { return 0; }
 static int flush(file_t *file) { return 0; }
 static int seek(file_t *file, size_t offset) { return 0; }
 static int mmap(file_t *file, char *addr, size_t offset, size_t len) {
+    /* FIXME: vfs impl should not relay on other data such as proc, intr.
+     * Got memory outside mmap and leave vfs mother do this
+     */
+    proc_t *proc = myproc();
+    assert((uintptr_t)addr % PG_SIZE == 0,
+           "mmap addr must be aligned to page.");
+    struct FAT32_FileSystem *fs = file->f_inode->i_sb->s_fs_data;
+    // TODO: impl mmap require bufferio's buffer set to PGSIZE
     return 0;
 }
 static int munmap(file_t *file, char *addr, size_t len) { return 0; }
@@ -466,9 +475,18 @@ static file_ops_t file_ops = {
 };
 
 typedef int (*fat_dirent_loop_callback_t)(union FAT32_DirEnt *dirent,
-                                          void               *data);
+                                          char *long_name, void *data);
 static void loop_fat_dirent(struct FAT32_FileSystem *fs, uint32_t dir_clus,
                             fat_dirent_loop_callback_t callback, void *data) {
+    /*
+     * FAT32在短文件项之前总会倒序填充长文件名项，若long_name为NULL的情况下遇见
+     * 长文件名项，则是最后一个长文件名项。这里用的是Unicode存储，我们不支持Unicode
+     * 所以只截取最低的字节为ASCII。一个长文件名项可以存储13个字符。
+     */
+    char   *long_name        = NULL; // dynamic alloc while reading
+    char   *pLong            = NULL;
+    uint8_t long_name_chksum = 0;
+
     for (;;) {
         for (uint32_t i = 0; i < fs->SecPerClus; i++) {
             buffered_io_t *buf = bio_cache_read(
@@ -487,15 +505,65 @@ static void loop_fat_dirent(struct FAT32_FileSystem *fs, uint32_t dir_clus,
                 if (DirEnt.Name[0] == 0x2E) {
                     continue;
                 }
-                if (DirEnt.Attr == FS_ATTR_LONGNAME)
-                    continue; // TODO: support long name
-                if (DirEnt.Attr & ATTR_VOLUME_ID)
-                    continue; // TODO: read it
+                if (DirEnt.Attr == FS_ATTR_LONGNAME) {
+                    // must got long name...
+                    int ord = DirEnt.L_Ord & 0x1F;
+                    if (long_name == NULL) {
+                        // first meet
+                        assert(DirEnt.L_Ord & 0x40, "Order mistake.");
+                        size_t sz = sizeof(char) * ord * 13 + 1;
+                        long_name = kmalloc(sz);
+                        assert(long_name, "OOM");
+                        pLong            = long_name + sz - 1;
+                        long_name_chksum = DirEnt.L_ChkSum;
+                        *pLong--         = '\0';
+                    } else {
+                        assert(DirEnt.L_ChkSum == long_name_chksum,
+                               "Check sum unmatch.");
+                    }
+                    // copy name
+                    for (int ni = 4 - 2; ni >= 0; ni -= 2) {
+                        char ch = DirEnt.L_Name3[ni];
+                        if (ch != '\0' && ch != 0xFF)
+                            *pLong-- = ch;
+                    }
 
-                // call callback
-                if (callback(&DirEnt, data) != 0) {
-                    bio_cache_release(buf);
-                    return;
+                    for (int ni = 12 - 2; ni >= 0; ni -= 2) {
+                        char ch = DirEnt.L_Name2[ni];
+                        if (ch != '\0' && ch != 0xFF)
+                            *pLong-- = ch;
+                    }
+
+                    for (int ni = 10 - 2; ni >= 0; ni -= 2) {
+                        char ch = DirEnt.L_Name1[ni];
+                        if (ch != '\0' && ch != 0xFF)
+                            *pLong-- = ch;
+                    }
+                }
+                if (DirEnt.Attr & ATTR_VOLUME_ID)
+                    continue; // TODO: read it and save it
+
+                if (long_name) {
+                    // if there is a lone name ent
+                    // Checksum
+                    assert(long_name_chksum == checksum_fname(DirEnt.Name),
+                           "Check sum failed.");
+                    // call callback
+                    if (callback(&DirEnt, pLong + 1, data) != 0) {
+                        bio_cache_release(buf);
+                        return;
+                    }
+                    kfree(long_name);
+                    long_name = pLong = NULL;
+                    long_name_chksum  = 0;
+                } else {
+                    char dname[12] = {[0 ... 11] = 0};
+                    read_8_3_filename(DirEnt.Name, dname);
+                    // call callback
+                    if (callback(&DirEnt, dname, data) != 0) {
+                        bio_cache_release(buf);
+                        return;
+                    }
                 }
             }
             bio_cache_release(buf);
@@ -519,9 +587,7 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
     struct FAT32_FileSystem *fs = dir->i_sb->s_fs_data;
     uint32_t dir_clus = ((fatfs_inode_data_t *)dir->i_fs_data)->start_clus;
 
-    int looper(union FAT32_DirEnt * dirent, void *_data) {
-        char dname[12] = {[0 ... 11] = 0};
-        read_8_3_filename(dirent->Name, dname);
+    int looper(union FAT32_DirEnt * dirent, char *long_name, void *_data) {
         inode_t *inode = alloc_inode(dir->i_sb);
         ((fatfs_inode_data_t *)inode->i_fs_data)->start_clus =
             dirent->FstClusHI << 16 | dirent->FstClusLO;
@@ -532,7 +598,13 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
         memset(dentry, 0, sizeof(dentry_t));
         dentry->d_subdirs = (list_head_t)LIST_HEAD_INIT(dentry->d_subdirs);
         dentry->d_inode   = inode;
-        strcpy(dentry->d_name, dname);
+        if (strlen(long_name) <= D_NAME_LEN - 1)
+            strcpy(dentry->d_name, long_name);
+        else {
+            memcpy(dentry->d_name, long_name, 31);
+            dentry->d_name[D_NAME_LEN - 1] =
+                '\0'; // bad truncate, consider use kmamlloc
+        }
 
         if (dirent->Attr & ATTR_DIR) {
             // ent is a dir

@@ -385,16 +385,19 @@ sysret_t sys_getcwd(struct trap_context *trapframe) {
     if (size < len)
         return (sysret_t)NULL; // buffer to small
     else {
-        if (ubuf)
+        char *ret = NULL;
+        if (ubuf) {
             umemcpy(ubuf, kbuf, len);
-        else {
+            ret = ubuf;
+        } else {
             // alloc by our
             char *old_brk = (char *)ROUNDUP_WITH(8, proc->prog_break);
             do_brk(proc, ROUNDUP_WITH(8, old_brk + len));
             umemcpy(old_brk, kbuf, len);
+            ret = old_brk;
         }
         kfree(kbuf);
-        return (sysret_t)ubuf;
+        return (sysret_t)ret;
     }
 }
 

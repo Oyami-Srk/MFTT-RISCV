@@ -117,7 +117,7 @@ struct vfs_mount {
 };
 
 // DirEntry标识一个目录inode内的每一项，包含文件和子目录。
-#define D_NAME_LEN        16
+#define D_NAME_LEN        32
 #define D_TYPE_FILE       1
 #define D_TYPE_DIR        2
 #define D_TYPE_NOT_LOADED 3

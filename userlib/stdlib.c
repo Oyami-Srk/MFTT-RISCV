@@ -36,11 +36,11 @@ int vsprintf(char *buf, const char *fmt, va_list args) {
     va_list   arg = args;
     long long m;
 
-    static char inner_buf[1024]; // hardcode is not good
-    char        cs;
-    int         align;
-    int         align_type = 0; // 0 - right, 1 - left, 2 - center
-    int         longint    = 0; // 0 - int, 1 - long int
+    char inner_buf[512]; // hardcode is not good
+    char cs;
+    int  align;
+    int  align_type = 0; // 0 - right, 1 - left, 2 - center
+    int  longint    = 0; // 0 - int, 1 - long int
 
     char *p;
     for (p = buf; *fmt; fmt++) {

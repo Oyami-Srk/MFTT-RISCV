@@ -41,7 +41,7 @@ SET(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # Enable asm
 ENABLE_LANGUAGE(ASM)
 
-SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fno-stack-protector -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage")
+SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fstack-protector-strong -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage")
 IF ("${OS_PLATFORM}" STREQUAL "qemu")
     ADD_COMPILE_DEFINITIONS(PLATFORM_QEMU)
 ELSE ()
@@ -77,7 +77,7 @@ ADD_CUSTOM_COMMAND(TARGET kernel.elf
 
 SET(USER_PROG_COMPILE_OPTIONS "-Wall;-Werror;-O;-fno-omit-frame-pointer;"
         "-ggdb;-g;-MD;-mcmodel=medany;-ffreestanding;-fno-common;-nostdlib;"
-        ";-mno-relax;-fno-stack-protector")
+        ";-mno-relax;-fstack-protector-strong")
 # TODO: use _start and cutom crt0 as entry.
 SET(USER_PROG_LINK_OPTIONS "-z;max-page-size=4096;-N;-e;main;-Ttext;0")
 

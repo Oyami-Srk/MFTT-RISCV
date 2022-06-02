@@ -12,7 +12,8 @@
 #ifdef PLATFORM_QEMU
 #define COULD_BE_PAGEFAULT(x) ((x) == 15 || (x) == 13 || (x) == 12 || (x) == 5)
 #else
-#define COULD_BE_PAGEFAULT(x) ((x) == 7 || (x) == 5 || (x) == 1)
+#define COULD_BE_PAGEFAULT(x)                                                  \
+    ((x) == 15 || (x) == 13 || (x) == 12 || (x) == 7 || (x) == 5 || (x) == 1)
 #endif
 
 // 其实用vector命名不太正确，因为这里用DIRECT MODE不是向量表模式

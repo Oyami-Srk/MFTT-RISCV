@@ -86,7 +86,6 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
             return_to_cpu_process();
             // After process invoke yield, they returned here
             // without lock
-            assert(myproc() == proc, "Current proc changed.");
             mycpu()->proc = NULL;
         } else {
             mycpu()->proc = NULL;

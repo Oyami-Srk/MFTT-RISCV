@@ -29,6 +29,7 @@ void sleep(void *chan, spinlock_t *lock) {
 void wakeup(void *chan) {
     spinlock_acquire(&os_env.proc_lock);
     list_foreach_entry(&os_env.procs, proc_t, proc_list, proc) {
+        assert(proc, "Process must be valid.");
         spinlock_acquire(&proc->lock);
         if (proc->status & PROC_STATUS_WAITING && proc->waiting_chan == chan) {
             proc->status &= ~(PROC_STATUS_WAITING);

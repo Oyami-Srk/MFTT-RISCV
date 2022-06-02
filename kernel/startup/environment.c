@@ -26,3 +26,12 @@ void init_env() {
     os_env.kernel_boot_stack     = &boot_stack;
     os_env.kernel_boot_stack_top = &boot_sp;
 }
+
+// Stack protector
+uintptr_t __stack_chk_guard = 0x20010125beef5a5a;
+
+__attribute__((noreturn)) void __stack_chk_fail(void) {
+    kpanic("Stack overflow...");
+    while (1)
+        ;
+}

@@ -68,7 +68,7 @@ rb_node *rb_pred(rb_node *n) {
     }
 }
 
-#if 0
+#if 1
 // Red-Black Tree
 static void rb_rotate_left(rb_tree *tree, rb_node *node) {
     rb_node *right = node->R;
@@ -328,7 +328,7 @@ color:
         rb_remove_fixup(tree, child, parent);
 }
 
-void rb_replace(rb_node *old, rb_node *new) {
+void rb_replace(rb_tree *tree, rb_node *old, rb_node *new) {
     assert(old->key == new->key, "Only nodes with same key could be replace.");
     int      color  = GET_COLOR(old);
     rb_node *parent = GET_PARENT(old);
@@ -349,6 +349,10 @@ void rb_replace(rb_node *old, rb_node *new) {
             kpanic("Parent set but no child is us.");
         }
         SET_PARENT(new, parent);
+    } else {
+        assert(tree->root == old, "Old have no tree but not the root.");
+        tree->root = new;
+        SET_PARENT(new, NULL);
     }
     SET_COLOR(new, color);
 }

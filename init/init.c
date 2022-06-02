@@ -121,81 +121,22 @@ int main() {
 }
 #endif
 
-static inline char char_upper(char c) {
-    return c - (c >= 'a' && c <= 'z' ? 32 : 0);
-}
-
-// turn normal fn into 8.3 one
-static void write_8_3_filename(char *fname, char *buffer) {
-    memset(buffer, ' ', 11);
-    uint32_t namelen = strlen((const char *)fname);
-    // find the extension
-    int i;
-    int dot_index = -1;
-    for (i = namelen - 1; i >= 0; i--) {
-        if (fname[i] == '.') {
-            // Found it!
-            dot_index = i;
-            break;
-        }
-    }
-
-    // Write the extension
-    if (dot_index >= 0) {
-        for (i = 0; i < 3; i++) {
-            uint32_t c_index = dot_index + 1 + i;
-            uint8_t  c = c_index >= namelen ? ' ' : char_upper(fname[c_index]);
-            buffer[8 + i] = c;
-        }
-    } else {
-        for (i = 0; i < 3; i++) {
-            buffer[8 + i] = ' ';
-        }
-    }
-
-    // Write the filename.
-    uint32_t firstpart_len = namelen;
-    if (dot_index >= 0) {
-        firstpart_len = dot_index;
-    }
-    if (firstpart_len > 8) {
-        // Write the weird tilde thing.
-        for (i = 0; i < 6; i++) {
-            buffer[i] = char_upper(fname[i]);
-        }
-        buffer[6] = '~';
-        buffer[7] = '1'; // probably need to enumerate like files and increment.
-    } else {
-        // Just write the file name.
-        uint32_t j;
-        for (j = 0; j < firstpart_len; j++) {
-            buffer[j] = char_upper(fname[j]);
-        }
-    }
-}
-
 void test_execve(const char *name, bool *meet) {
+    /*
     char *target = "getcwd";
     if (*meet != true) {
         if (strcmp(name, target) == 0)
             *meet = true;
         else
             return;
-    }
+    } */
     int ret = fork();
     if (ret == 0) {
-        char name_buffer[32];
-        write_8_3_filename((char *)name, name_buffer);
-        for (char *p = name_buffer; *p != '\0'; p++)
-            if (*p == ' ') {
-                *p = '\0';
-                break;
-            }
         // child
         const char *argv[] = {name, NULL};
         const char *env[]  = {NULL};
-        printf("Try execve %s (FAT Name: %s).\n", name, name_buffer);
-        int r = execve(name_buffer, (char *const *)argv, (char *const *)env);
+        printf("Try execve %s.\n", name);
+        int r = execve(name, (char *const *)argv, (char *const *)env);
         printf("Execve failed: %d.\n", r);
         exit(r);
     } else if (ret > 0) {
@@ -226,14 +167,18 @@ int main() {
                 if (mount(DISK_DEVICE, "/mnt", "fat32", 0, NULL) != 0)
                     printf("Cannot mount " DISK_DEVICE " to /mnt.\n");
                 else {
+                    printf("List /:\n");
+                    while (getdents64(parent_fd, dent, 64) != 0) {
+                        printf("%c: %s\n", dent->d_type, dent->d_name);
+                    }
                     printf("List /mnt:\n");
                     while (getdents64(mnt, dent, 64) != 0) {
                         printf("%c: %s\n", dent->d_type, dent->d_name);
                     }
                     chdir("/mnt");
-                    int sh_fd = openat(AT_FDCWD, "RUN-ALL.SH", 0, 0);
+                    int sh_fd = openat(AT_FDCWD, "run-all.sh", 0, 0);
                     if (sh_fd < 0)
-                        printf("Open RUN_ALL.SH failed.\n");
+                        printf("Open run-all.sh failed.\n");
                     else {
                         int   bytes = read(sh_fd, buffer, 512);
                         char  line[32];

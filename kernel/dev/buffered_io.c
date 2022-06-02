@@ -199,6 +199,7 @@ int init_buffered_io(dev_driver_t *drv) {
 
     // Read raw disk vfs inode
     dentry_t *devs = vfs_get_dentry("/dev", NULL);
+    assert(devs, "Dev cannot be null.");
     list_foreach_entry(&devs->d_subdirs, dentry_t, d_subdirs_list, dent) {
         if (memcmp("raw_", dent->d_name, 4) == 0) {
             setup_buffered_io_for(devs, dent);

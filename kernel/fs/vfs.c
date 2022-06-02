@@ -63,12 +63,14 @@ static int vfs_read_dir_callback(dentry_t *dentry, void *data) {
     dentry_t *parent = (dentry_t *)data;
     dentry->d_parent = parent;
     // TODO: use hashmap or rbtree
+    /*
     list_foreach_entry(&parent->d_subdirs, dentry_t, d_subdirs_list, child) {
+        assert((child->d_inode & 0x4) == 0, "Aligned failed.");
         if (child->d_inode->i_ino == dentry->d_inode->i_ino)
             return 0;
         if (strcmp(child->d_name, dentry->d_name) == 0)
             return 0; // this is tempo
-    }
+    } */
     list_add(&dentry->d_subdirs_list, &parent->d_subdirs);
     return 0;
 }

@@ -26,8 +26,9 @@ void __attribute__((used)) supervisor_trap_handler(struct trap_context *tf) {
     if ((sstatus & SSTATUS_SIE) != 0) {
         CSR_RWAND(sstatus, ~SSTATUS_SIE);
     }
+    /* This may indicated a fault in trap handler..
     assert((sstatus & SSTATUS_SIE) == 0,
-           "Trap triggered with interrupt enabled.");
+           "Trap triggered with interrupt enabled."); */
 
     if (scause & XCAUSE_INT) {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);

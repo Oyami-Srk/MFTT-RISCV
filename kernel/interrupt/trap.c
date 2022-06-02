@@ -215,6 +215,14 @@ void exception_panic(uint64_t scause, uint64_t stval, uint64_t sepc,
         put_char(']');
         put_str(proc->name);
         put_char('\n');
+        put_str("Process' kernel stack: 0x");
+        char buffer[32] = {[0 ... 31] = 0};
+        itoa((long long)proc->kernel_stack, buffer, 16);
+        put_str(buffer);
+        put_str(" ~ 0x");
+        itoa((long long)proc->kernel_stack_top, buffer, 16);
+        put_str(buffer);
+        put_str("\n");
     }
     print_sstatus(sstatus);
 

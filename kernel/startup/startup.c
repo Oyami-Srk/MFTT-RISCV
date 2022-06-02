@@ -56,6 +56,10 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         started = 1;
     } else {
         // Salve cores
+#if 1
+        while (1)
+            ;
+#endif
         while (!started)
             ;
         init_trap();

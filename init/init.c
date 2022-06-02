@@ -122,14 +122,13 @@ int main() {
 #endif
 
 void test_execve(const char *name, bool *meet) {
-    /*
-    char *target = "getcwd";
+    char *target = "execve";
     if (*meet != true) {
         if (strcmp(name, target) == 0)
             *meet = true;
         else
             return;
-    } */
+    }
     int ret = fork();
     if (ret == 0) {
         // child

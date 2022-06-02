@@ -234,6 +234,8 @@ int vm_copy(pde_t dst, pde_t src, char *start, char *end) {
 
 int do_pagefault(char *caused_va, pde_t pde, bool from_kernel) {
     proc_t *proc = myproc();
+    if (!proc)
+        return -5; // no proc here.
     assert(proc->page_dir == pde,
            "PDE not identical to currently holding process.");
     if ((uintptr_t)caused_va >= 0x80000000) {

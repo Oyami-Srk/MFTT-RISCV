@@ -1,11 +1,11 @@
-#include <types.h>
 #include <lib/stdlib.h>
 #include <lib/sys/spinlock.h>
 #include <riscv.h>
 #include <smp_barrier.h>
 #include <trap.h>
+#include <types.h>
 
-#define LINUX_WAY
+//#define LINUX_WAY
 
 static bool spinlock_holding(spinlock_t *pLock) {
 #ifdef LINUX_WAY
@@ -35,6 +35,7 @@ static inline int spinlock_try_lock(spinlock_t *pLock) {
 #endif
 
 void spinlock_acquire(spinlock_t *pLock) {
+    assert(pLock, "Lock cannot be null.");
     trap_push_off();
 #ifdef LINUX_WAY
     while (1) {
@@ -54,6 +55,7 @@ void spinlock_acquire(spinlock_t *pLock) {
 }
 
 void spinlock_release(spinlock_t *pLock) {
+    assert(pLock, "Lock cannot be null.");
 #ifdef LINUX_WAY
     RISCV_FENCE(rw, w);
     WRITE_ONCE(pLock->lock, 0);

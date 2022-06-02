@@ -63,7 +63,6 @@ pid_t do_wait(pid_t waitfor, int *status, int options) {
                     clear_bit(os_env.proc_bitmap, pid);
                     set_proc(pid, NULL);
                     spinlock_release(&os_env.proc_lock);
-                    spinlock_release(&child->lock);
                     spinlock_release(&p->lock);
                     return pid;
                 }

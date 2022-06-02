@@ -124,8 +124,6 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
     }
 
     char *process_stack_top = (char *)(PROC_STACK_BASE - stack_pages * PG_SIZE);
-    // unload original stack
-    unmap_pages(old->page_dir, (void *)(process_stack_top), stack_pages, true);
     // load new stack
     map_pages(old->page_dir, (void *)(process_stack_top), process_stack,
               PROC_STACK_SIZE, PTE_TYPE_RW, true, false);

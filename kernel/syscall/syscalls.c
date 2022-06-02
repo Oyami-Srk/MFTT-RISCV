@@ -589,7 +589,8 @@ void do_syscall(struct trap_context *trapframe) {
         assert(myproc(), "Proc invalid.");
         kprintf("PID %d calls invalid syscall with id %d.\n", myproc()->pid,
                 syscall_id);
-        trapframe->a0 = -1;
+        do_exit(myproc(), -1);
+        // trapframe->a0 = -1;
         return;
     }
     // TODO: strace

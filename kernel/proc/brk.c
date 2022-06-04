@@ -2,6 +2,7 @@
 // Created by shiroko on 22-5-29.
 //
 
+#include <lib/string.h>
 #include <memory.h>
 #include <proc.h>
 
@@ -22,7 +23,7 @@ uintptr_t do_brk(proc_t *proc, uintptr_t addr) {
             char *new_pa = page_alloc(pgs, PAGE_TYPE_USER | PAGE_TYPE_INUSE);
             if (!new_pa)
                 return -1;
-            // TODO: maybe require a bzero?
+            memset(new_pa, 0, pgs * PG_SIZE);
             if (map_pages(proc->page_dir,
                           (char *)(PG_ROUNDDOWN(current_brk) + PG_SIZE), new_pa,
                           PG_SIZE * pgs, PTE_TYPE_RW, true, false) != 0)

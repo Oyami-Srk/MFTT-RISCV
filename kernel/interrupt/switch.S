@@ -18,6 +18,11 @@ context_switch:
     sd s10, 96(a0)
     sd s11, 104(a0)
 
+    /* csrr s0, satp
+    sd s0, 112(a0)
+    ld s0, 112(a1)
+    csrw satp, s0 */
+
     ld ra, 0(a1)
     ld sp, 8(a1)
     ld s0, 16(a1)

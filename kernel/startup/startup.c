@@ -65,8 +65,7 @@ _Noreturn void kernel_main(uint64_t hartid, struct fdt_header *fdt_addr) {
         init_trap();
     }
 
-    // kprintf("[%d] Initialization complete, start running.\n", cpuid());
-    assert(mycpu()->trap_off_depth == 0, "CPU enter scheduler with trap off.");
+    kprintf("[%d] Initialization complete, start running.\n", cpuid());
     // pre-CPU process runner
     while (1) {
         enable_trap();

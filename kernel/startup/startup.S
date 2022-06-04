@@ -8,8 +8,9 @@ _start:
     /* Mask all interrupts */
     csrw sie, 0
 
-    /* Clear bss */
+    /* Clear bss and satp*/
     bnez a0, .clear_out
+    csrw satp, 0
     la a2, __bss_start /* bss is aligned to 8 bytes */
     la a3, __bss_end
     .clear_start:

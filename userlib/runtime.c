@@ -4,6 +4,7 @@
 
 #include <syscall.h>
 
+/*
 // stack protector
 uintptr_t __stack_chk_guard = 0x20010125beef5a5a;
 
@@ -13,3 +14,4 @@ __attribute__((noreturn)) void __stack_chk_fail(void) {
     while (1)
         ;
 }
+ */

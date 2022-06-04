@@ -8,8 +8,6 @@
 #include <proc.h>
 #include <trap.h>
 
-// TODO: impl clone
-
 int do_fork(proc_t *parent, char *child_stack) {
     spinlock_acquire(&parent->lock);
     if (parent->status & PROC_STATUS_RUNNING) {
@@ -19,7 +17,8 @@ int do_fork(proc_t *parent, char *child_stack) {
     proc_t *child = proc_alloc();
     if (!child)
         return -1;
-    // fork memory, TODO: but copy on write
+
+    // fork memory, copy on write
     vm_copy(child->page_dir, parent->page_dir, parent->prog_image_start,
             parent->prog_break);
     vm_copy(child->page_dir, parent->page_dir, parent->stack_top,

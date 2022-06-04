@@ -77,7 +77,7 @@ ADD_CUSTOM_COMMAND(TARGET kernel.elf
 
 SET(USER_PROG_COMPILE_OPTIONS "-Wall;-O;-fno-omit-frame-pointer;"
         "-ggdb;-g;-MD;-mcmodel=medany;-ffreestanding;-fno-common;-nostdlib;"
-        ";-mno-relax;-fstack-protector-strong")
+        ";-mno-relax;-fno-stack-protector")
 # TODO: use _start and cutom crt0 as entry.
 SET(USER_PROG_LINK_OPTIONS "-z;max-page-size=4096;-N;-e;main;-Ttext;0")
 
@@ -85,7 +85,7 @@ SET(USER_PROG_LINK_OPTIONS "-z;max-page-size=4096;-N;-e;main;-Ttext;0")
 FILE(GLOB_RECURSE ULIB_SRCS "userlib/*.c")
 ADD_LIBRARY(user STATIC ${ULIB_SRCS})
 TARGET_INCLUDE_DIRECTORIES(user PUBLIC "userlib/header")
-TARGET_COMPILE_OPTIONS(user INTERFACE ${USER_PROG_COMPILE_OPTIONS})
+TARGET_COMPILE_OPTIONS(user PUBLIC ${USER_PROG_COMPILE_OPTIONS})
 TARGET_LINK_OPTIONS(user INTERFACE ${USER_PROG_LINK_OPTIONS})
 # End of userlib
 

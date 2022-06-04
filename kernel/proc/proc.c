@@ -113,6 +113,7 @@ proc_t *proc_alloc() {
 
     proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
     proc->kernel_task_context.ra = (uintptr_t)user_trap_return;
+    // proc->kernel_task_context.satp = (uintptr_t)os_env.kernel_satp;
 
     // setup satp
     uint64_t satp = ((uint64_t)proc->page_dir / PG_SIZE) |
@@ -125,7 +126,6 @@ proc_t *proc_alloc() {
 void proc_free(proc_t *proc) {
     // must hold lock
     assert(proc->lock.lock, "Proc free with unlocked.");
-    // TODO: free resource. walk pde and decreate reference count
     // free file
     for (int i = 0; i < MAX_FILE_OPEN; i++) {
         if (proc->files[i])

@@ -164,9 +164,8 @@ sysret_t sys_clone(struct trap_context *trapframe) {
         proc_t *parent = myproc();
         return do_fork(parent, stack);
     } else {
-        // TODO: impl this
     }
-    trapframe->a0 = -1;
+    return -1;
 }
 
 sysret_t sys_getppid(struct trap_context *trapframe) {
@@ -717,7 +716,6 @@ static const char* syscall_names[] = {
 #include <driver/console.h>
 
 void do_syscall(struct trap_context *trapframe) {
-    // TODO: move sum mark into trap handler
     int syscall_id = (int)(trapframe->a7 & 0xFFFFFFFF);
     if (unlikely(syscall_id >= NELEM(syscall_table) ||
                  syscall_table[syscall_id] == NULL)) {

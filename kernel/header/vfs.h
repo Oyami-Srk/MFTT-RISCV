@@ -105,6 +105,8 @@ struct vfs_inode {
 
     spinlock_t spinlock;
 
+    uint64_t i_atime, i_mtime, i_ctime;
+
     union {
     } info;
 

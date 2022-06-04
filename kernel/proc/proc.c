@@ -85,9 +85,10 @@ proc_t *proc_alloc() {
     list_add(&proc->proc_list, &os_env.procs);
     spinlock_acquire(&proc->lock);
     spinlock_release(&os_env.proc_lock);
-    proc->pid       = pid;
-    proc_table[pid] = proc;
-    proc->children  = (list_head_t)LIST_HEAD_INIT(proc->children);
+    proc->pid        = pid;
+    proc_table[pid]  = proc;
+    proc->children   = (list_head_t)LIST_HEAD_INIT(proc->children);
+    proc->start_tick = 0;
 
     proc->kernel_stack =
         page_alloc(PG_ROUNDUP(PROG_KSTACK_SIZE) / PG_SIZE, PAGE_TYPE_SYSTEM);

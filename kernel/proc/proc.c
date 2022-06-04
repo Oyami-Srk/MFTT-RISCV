@@ -111,9 +111,9 @@ proc_t *proc_alloc() {
     proc->status          = PROC_STATUS_NORMAL;
     proc->cwd             = vfs_get_root();
 
-    proc->kernel_task_context.sp = (uintptr_t)proc->kernel_sp;
-    proc->kernel_task_context.ra = (uintptr_t)user_trap_return;
-    // proc->kernel_task_context.satp = (uintptr_t)os_env.kernel_satp;
+    proc->kernel_task_context.sp   = (uintptr_t)proc->kernel_sp;
+    proc->kernel_task_context.ra   = (uintptr_t)user_trap_return;
+    proc->kernel_task_context.satp = (uintptr_t)os_env.kernel_satp;
 
     // setup satp
     uint64_t satp = ((uint64_t)proc->page_dir / PG_SIZE) |

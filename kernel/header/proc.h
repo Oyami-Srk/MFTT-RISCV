@@ -63,7 +63,7 @@ struct task_context {
     uint64_t s9;
     uint64_t s10;
     uint64_t s11;
-    // uint64_t satp; // ?
+    uint64_t satp; // ?
 };
 
 #define PROC_STATUS_SUSPEND 0x0000

@@ -121,14 +121,18 @@ int main() {
 }
 #endif
 
-void test_execve(const char *name, bool *meet) {
+bool meet = false;
+
+void test_execve(const char *name) {
+    /*
     char *target = "execve";
-    if (*meet != true) {
+    if (meet != true) {
         if (strcmp(name, target) == 0)
-            *meet = true;
+            meet = true;
         else
             return;
-    }
+    } */
+
     int ret = fork();
     if (ret == 0) {
         // child
@@ -149,10 +153,9 @@ void test_execve(const char *name, bool *meet) {
 }
 
 int main() {
-    char      buffer[512];
-    char      dent_buffer[64];
-    dirent_t *dent = (dirent_t *)dent_buffer;
-    bool      meet = false;
+    char buffer[512];
+    //    char dent_buffer[64];
+    //    dirent_t *dent = (dirent_t *)dent_buffer;
     // TODO: exec a shell and initscript. IMPORTANT!!
     int parent_fd = openat(AT_FDCWD, "/", 0, 0);
     if (parent_fd < 0) {
@@ -166,6 +169,7 @@ int main() {
                 if (mount(DISK_DEVICE, "/mnt", "fat32", 0, NULL) != 0)
                     printf("Cannot mount " DISK_DEVICE " to /mnt.\n");
                 else {
+                    /*
                     printf("List /:\n");
                     while (getdents64(parent_fd, dent, 64) != 0) {
                         printf("%c: %s\n", dent->d_type, dent->d_name);
@@ -173,7 +177,7 @@ int main() {
                     printf("List /mnt:\n");
                     while (getdents64(mnt, dent, 64) != 0) {
                         printf("%c: %s\n", dent->d_type, dent->d_name);
-                    }
+                    } */
                     chdir("/mnt");
                     int sh_fd = openat(AT_FDCWD, "run-all.sh", 0, 0);
                     if (sh_fd < 0)
@@ -194,7 +198,7 @@ int main() {
                                                               3) == 0) {
                                             printf("Shell script.\n");
                                         } else {
-                                            test_execve(line, &meet);
+                                            test_execve(line);
                                         }
                                     }
                                 }

@@ -75,7 +75,7 @@ ADD_CUSTOM_COMMAND(TARGET kernel.elf
         COMMAND ${CMAKE_OBJDUMP} -S ${CMAKE_BINARY_DIR}/kernel.elf > ${CMAKE_BINARY_DIR}/kernel.disasm)
 # End of kernel.elf
 
-SET(USER_PROG_COMPILE_OPTIONS "-Wall;-Werror;-O;-fno-omit-frame-pointer;"
+SET(USER_PROG_COMPILE_OPTIONS "-Wall;-O;-fno-omit-frame-pointer;"
         "-ggdb;-g;-MD;-mcmodel=medany;-ffreestanding;-fno-common;-nostdlib;"
         ";-mno-relax;-fstack-protector-strong")
 # TODO: use _start and cutom crt0 as entry.

@@ -27,7 +27,7 @@ void __attribute__((used)) user_trap_handler(proc_t *proc) {
         handle_interrupt(scause & 0x7FFFFFFFFFFFFFFF);
     } else if (scause == 8) {
         // do syscall
-        // TODO: Check op type
+        // Syscall should always be 32bits length `ecall`.
         proc->user_pc += 4;
         // TODO: maybe a lock here
         do_syscall(&proc->trapframe);

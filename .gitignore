@@ -7,3 +7,4 @@ build
 tools/fs_contents/riscv64/
 tools/oscomp/
 openocd
+*-tmp

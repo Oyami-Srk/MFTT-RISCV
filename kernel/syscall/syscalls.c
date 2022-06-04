@@ -497,6 +497,45 @@ sysret_t sys_dup3(struct trap_context *trapframe) {
     return new_fd;
 }
 
+sysret_t sys_fstat(struct trap_context *trapframe) {
+    int      fd     = (int)trapframe->a0;
+    kstat_t *ukstat = (kstat_t *)trapframe->a1;
+    if (!ukstat)
+        return -1;
+    file_t *f = myproc()->files[fd];
+    if (!f)
+        return -1;
+    kstat_t kkstat = {
+        .st_dev        = f->f_inode->i_dev[1],
+        .st_ino        = f->f_inode->i_ino,
+        .st_mode       = f->f_mode,
+        .st_nlink      = f->f_inode->i_nlinks,
+        .st_uid        = 0,
+        .st_gid        = 0,
+        .st_rdev       = f->f_inode->i_dev[0],
+        .st_size       = f->f_inode->i_size,
+        .st_blksize    = 0,
+        .st_blocks     = 0,
+        .st_atime_sec  = f->f_inode->i_atime,
+        .st_atime_nsec = 0,
+        .st_mtime_sec  = f->f_inode->i_mtime,
+        .st_mtime_nsec = 0,
+        .st_ctime_sec  = f->f_inode->i_ctime,
+        .st_ctime_nsec = 0,
+    };
+    umemcpy(ukstat, &kkstat, sizeof(kstat_t));
+    return 0;
+}
+
+sysret_t sys_gettimeofday(struct trap_context *trapframe) {
+    struct timespec *utime = (struct timespec *)trapframe->a0;
+    if (!utime)
+        return -1;
+    struct timespec ktime = {.tv_sec = sys_ticks(NULL), .tv_nsec = 0};
+    umemcpy(utime, &ktime, sizeof(struct timespec));
+    return 0;
+}
+
 extern sysret_t sys_test(struct trap_context *);
 // Syscall table
 // clang-format off
@@ -522,7 +561,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_mkdirat]= sys_mkdirat,
     [SYS_umount2]= NULL,
     [SYS_mount]= sys_mount,
-    [SYS_fstat]= NULL,
+    [SYS_fstat]= sys_fstat,
     [SYS_clone]= sys_clone,
     [SYS_execve]= sys_execve,
     [SYS_wait4]= sys_wait,
@@ -535,7 +574,7 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_times]= NULL,
     [SYS_uname]= sys_uname,
     [SYS_sched_yield]= sys_sched_yield,
-    [SYS_gettimeofday]= NULL,
+    [SYS_gettimeofday]= sys_gettimeofday,
     [SYS_nanosleep]= NULL,
 };
 

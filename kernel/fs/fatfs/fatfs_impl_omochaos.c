@@ -582,6 +582,46 @@ static int unlink(inode_t *dir, const char *name) {}
 // 创建/删除目录inode
 static int mkdir(inode_t *parent, const char *name, inode_t **dir) {}
 static int rmdir(inode_t *parent, const char *name, inode_t **dir) {}
+
+#define IS_LEAP_YEAR(year)                                                     \
+    (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0))
+static uint64_t fat_date2ts(uint16_t date) {
+    int day   = date & 0x1F;
+    int month = (date >> 5) & 0xF;
+    int year  = (date >> 9) & 0x7F; // start from 1980
+    year += 1980;
+    // unix ts start from 1970-01-01
+    const int  a_day_in_sec        = 60 * 60 * 24;
+    static int days_till_a_month[] = {
+        0,
+        0,
+        31,
+        31 + 28,
+        31 + 28 + 31,
+        31 + 28 + 31 + 30,
+        31 + 28 + 31 + 30 + 31,
+        31 + 28 + 31 + 30 + 31 + 30,
+        31 + 28 + 31 + 30 + 31 + 30 + 31,
+        31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
+        31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
+        31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
+        31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
+    };
+    int days = day - 1 + days_till_a_month[month];
+    if (month > 2 && IS_LEAP_YEAR(year))
+        days += 1;
+    for (int i = 1970; i < year; i++)
+        days += IS_LEAP_YEAR(i) ? 366 : 365;
+    return days * a_day_in_sec;
+}
+
+static uint64_t fat_time2ts(uint16_t time) {
+    int sec  = (time & 0x1F) * 2;
+    int min  = (time >> 5) & 0x3F;
+    int hour = (time >> 11) & 0x1F;
+    return sec + min * 60 + hour * 60 * 60;
+}
+
 static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
     assert(dir->i_type == inode_dir, "Must be dir.");
     struct FAT32_FileSystem *fs = dir->i_sb->s_fs_data;
@@ -605,6 +645,12 @@ static int read_dir(inode_t *dir, read_dir_callback callback, void *data) {
             dentry->d_name[D_NAME_LEN - 1] =
                 '\0'; // bad truncate, consider use kmamlloc
         }
+
+        inode->i_mtime =
+            fat_date2ts(dirent->WrtDate) + fat_time2ts(dirent->WrtTime);
+        inode->i_ctime =
+            fat_date2ts(dirent->CrtDate) + fat_time2ts(dirent->CrtTime);
+        inode->i_atime = fat_date2ts(dirent->LastAccDate);
 
         if (dirent->Attr & ATTR_DIR) {
             // ent is a dir

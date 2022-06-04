@@ -177,6 +177,7 @@ struct vfs_filesystem_t {
 
 // Funcs
 void      init_vfs();
+dentry_t *vfs_get_parent_dentry(char const *path, dentry_t *cwd, char *name);
 dentry_t *vfs_get_dentry(const char *path, dentry_t *cwd);
 char     *vfs_get_dentry_fullpath(dentry_t *dent); // alloc by func
 inode_t  *vfs_alloc_inode(superblock_t *sb);

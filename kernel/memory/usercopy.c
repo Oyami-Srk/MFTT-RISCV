@@ -60,6 +60,8 @@ void *umemset(void *dst, char c, size_t size) {
 }
 
 char *ustrcpy_out(char *ustr) {
+    if (!ustr)
+        return NULL;
     BEGIN_UMEM_ACCESS();
     size_t len = strlen(ustr);
     assert((uintptr_t)ustr + len + 1 < KERNEL_MEM_START, "user str execeed.");
@@ -73,6 +75,8 @@ char *ustrcpy_out(char *ustr) {
 }
 
 void ustrcpy_in(char *ustr, char *kbuf) {
+    if (!ustr || !kbuf)
+        return;
     size_t len = strlen(kbuf);
     assert((uintptr_t)ustr + len + 1 < KERNEL_MEM_START,
            "user str buffer too small.");

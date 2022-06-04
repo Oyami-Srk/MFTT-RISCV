@@ -572,6 +572,63 @@ sysret_t sys_nanosleep(struct trap_context *trapframe) {
     return 0;
 }
 
+sysret_t sys_linkat(struct trap_context *trapframe) {
+    int         olddirfd = (int)trapframe->a0;
+    int         newdirfd = (int)trapframe->a2;
+    const char *oldpath  = ustrcpy_out((char *)trapframe->a1);
+    const char *newpath  = ustrcpy_out((char *)trapframe->a3);
+    if (!oldpath || !newpath)
+        return -1;
+
+    proc_t   *proc       = myproc();
+    dentry_t *old_dentry = NULL;
+    if (olddirfd == AT_FDCWD)
+        old_dentry = vfs_get_dentry(oldpath, proc->cwd);
+    else {
+        if (oldpath[0] != '/') {
+            file_t *old_dir_file = proc->files[olddirfd];
+            if (!old_dir_file)
+                goto failed;
+            old_dentry = vfs_get_dentry(oldpath, old_dir_file->f_dentry);
+        } else {
+            old_dentry = vfs_get_dentry(oldpath, vfs_get_root());
+        }
+    }
+    if (!old_dentry)
+        goto failed;
+
+    char      new_name[32]      = {[0 ... 31] = 0};
+    dentry_t *new_parent_dentry = NULL;
+    if (newdirfd == AT_FDCWD)
+        new_parent_dentry = vfs_get_parent_dentry(newpath, proc->cwd, new_name);
+    else {
+        if (newpath[0] != '/') {
+            file_t *new_dir_file = proc->files[newdirfd];
+            if (!newdirfd)
+                goto failed;
+            new_parent_dentry = vfs_get_parent_dentry(
+                newpath, new_dir_file->f_dentry, new_name);
+        } else {
+            new_parent_dentry =
+                vfs_get_parent_dentry(newpath, vfs_get_root(), new_name);
+        }
+    }
+    if (!new_parent_dentry || new_name[0] == '\0')
+        goto failed;
+
+    vfs_link_inode(old_dentry->d_inode, new_parent_dentry, new_name);
+
+    return 0;
+failed:
+    if (oldpath)
+        kfree((char *)oldpath);
+    if (newpath)
+        kfree((char *)newpath);
+    return -1;
+}
+
+sysret_t sys_unlinkat(struct trap_context *trapframe) { return 0; }
+
 extern sysret_t sys_test(struct trap_context *);
 // Syscall table
 // clang-format off
@@ -592,8 +649,8 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_dup3]= sys_dup3,
     [SYS_chdir]= sys_chdir,
     [SYS_getdents64]= sys_getdents64,
-    [SYS_linkat]= NULL,
-    [SYS_unlinkat]= NULL,
+    [SYS_linkat]= sys_linkat,
+    [SYS_unlinkat]= sys_unlinkat,
     [SYS_mkdirat]= sys_mkdirat,
     [SYS_umount2]= NULL,
     [SYS_mount]= sys_mount,

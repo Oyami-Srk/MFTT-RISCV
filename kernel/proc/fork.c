@@ -78,6 +78,11 @@ int do_fork(proc_t *parent, char *child_stack) {
     child->trapframe.a0 = 0;
     if (child_stack)
         child->trapframe.sp = (uintptr_t)child_stack;
+
+    spinlock_acquire(&os_env.ticks_lock);
+    child->start_tick = os_env.ticks;
+    spinlock_release(&os_env.ticks_lock);
+
     spinlock_release(&child->lock);
     spinlock_release(&parent->lock);
     // parent yield

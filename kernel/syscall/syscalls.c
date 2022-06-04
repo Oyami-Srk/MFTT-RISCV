@@ -536,6 +536,42 @@ sysret_t sys_gettimeofday(struct trap_context *trapframe) {
     return 0;
 }
 
+sysret_t sys_times(struct trap_context *trapframe) {
+    struct tms *utms = (struct tms *)trapframe->a0;
+    if (!utms)
+        return -1;
+    uint64_t   ticks = sys_ticks(NULL);
+    struct tms ktms  = {
+         .tms_utime  = 0, // User cpu time
+         .tms_stime  = 0, // System cpu time
+         .tms_cutime = 0, // User cpu time of children
+         .tms_cstime = 0, // System cpu time of children
+    };
+    return ticks;
+}
+
+sysret_t sys_nanosleep(struct trap_context *trapframe) {
+    struct timespec *uts = (struct timespec *)trapframe->a0;
+    if (!uts)
+        return -1;
+    struct timespec kts;
+    umemcpy(&kts, uts, sizeof(struct timespec));
+    uint64_t ticks_to_sleep = kts.tv_sec;
+
+    uint64_t ticks = 0;
+    spinlock_acquire(&os_env.ticks_lock);
+    ticks = os_env.ticks;
+    while (os_env.ticks - ticks < ticks_to_sleep) {
+        if (myproc()->status & PROC_STATUS_STOP) {
+            spinlock_release(&os_env.ticks_lock);
+            return -1;
+        }
+        sleep(&os_env.ticks, &os_env.ticks_lock);
+    }
+    spinlock_release(&os_env.ticks_lock);
+    return 0;
+}
+
 extern sysret_t sys_test(struct trap_context *);
 // Syscall table
 // clang-format off
@@ -571,11 +607,11 @@ static sysret_t (*syscall_table[])(struct trap_context *) = {
     [SYS_brk]= sys_brk,
     [SYS_munmap]= NULL,
     [SYS_mmap]= NULL,
-    [SYS_times]= NULL,
+    [SYS_times]= sys_times,
     [SYS_uname]= sys_uname,
     [SYS_sched_yield]= sys_sched_yield,
     [SYS_gettimeofday]= sys_gettimeofday,
-    [SYS_nanosleep]= NULL,
+    [SYS_nanosleep]= sys_nanosleep,
 };
 
 

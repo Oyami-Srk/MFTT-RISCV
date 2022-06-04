@@ -110,6 +110,7 @@ struct __proc_t {
     spinlock_t          lock;
     char                name[PROC_NAME_SIZE];
     void               *waiting_chan;
+    uint64_t            start_tick;
     // Stack info
     char *stack_top;    // in va
     char *stack_bottom; // in va, not contains end

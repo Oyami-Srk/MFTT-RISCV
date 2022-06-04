@@ -39,6 +39,7 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
     file_t *f = vfs_open(dentry, 0);
     if (!f)
         return -3; // cannot open file
+    spinlock_acquire(&old->lock);
     // setup new exec stack
     size_t stack_pages = PG_ROUNDUP(PROC_STACK_SIZE) / PG_SIZE;
     char  *process_stack =
@@ -133,7 +134,6 @@ int do_execve(proc_t *old, dentry_t *cwd, const char *path, const char *argv[],
     *((uintptr_t *)sp) = (uintptr_t)argc;
 
     // free old process's pages
-    spinlock_acquire(&old->lock);
     // unmap all userspace
     pde_t pagedir = old->page_dir;
     unmap_pages(pagedir, old->prog_image_start,

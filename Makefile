@@ -30,9 +30,9 @@ KERNEL_HEADER:=${PROJ_ROOT}/kernel/header/
 USER_HEADER:=${PROJ_ROOT}/userlib/header/
 COMMON_HEADER:=${PROJ_ROOT}/header/
 
-CC_FLAGS_GENERIC:= -fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fno-stack-protector -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage
+CC_FLAGS_GENERIC:= -fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fstack-protector-strong -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage
 CC_FLAGS_KERNEL:= ${CC_FLAGS_GENERIC} -isystem ${KERNEL_HEADER} -isystem ${COMMON_HEADER}
-CC_FLAGS_USER:= -Wall -Werror -O -fno-omit-frame-pointer -ggdb -g -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fno-stack-protector -isystem ${USER_HEADER} -isystem ${COMMON_HEADER}
+CC_FLAGS_USER:= -Wall -O -fno-omit-frame-pointer -ggdb -g -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -fstack-protector-strong -isystem ${USER_HEADER} -isystem ${COMMON_HEADER}
 
 LD_FLAGS_KERNEL:= -N -T${PROJ_ROOT}/kernel/kernel-${OS_PLATFORM}.ld
 LD_FLAGS_USER:= -z max-page-size=4096 -N -e main -Ttext 0

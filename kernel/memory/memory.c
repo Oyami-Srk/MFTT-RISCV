@@ -176,8 +176,11 @@ static int memory_fdt_prober(uint32_t version, const char *node_name,
                 if (addr_cells >= 2)
                     mem_addr |= CPU_TO_FDT32(*(addr_base - 1)) << 32;
                 mem_size = CPU_TO_FDT32(*size_base);
-                // for k210 port, TODO: enable all memory
-                mem_size = 0x600000;
+#ifdef PLATFORM_K210
+                // for k210 port, enable all memory
+                // TODO: rewrite platform setup producer
+                enable_all_memory();
+#endif
                 if (size_cells >= 2)
                     mem_size |= CPU_TO_FDT32(*(size_base - 1)) << 32;
                 kprintf("[FDT] Detected Memory @ 0x%x with Size 0x%x bytes.\n",

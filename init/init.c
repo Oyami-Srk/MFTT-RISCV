@@ -121,7 +121,8 @@ int main() {
 }
 #endif
 
-bool meet = false;
+bool        meet   = false;
+const char *skip[] = {"munmap", "mmap", "umount", "mount"};
 
 void test_execve(const char *name) {
     /*
@@ -132,6 +133,11 @@ void test_execve(const char *name) {
         else
             return;
     } */
+
+    for (int i = 0; i < (sizeof(skip) / sizeof(skip[0])); i++) {
+        if (strcmp(name, skip[0]) == 0)
+            return;
+    }
 
     int ret = fork();
     if (ret == 0) {

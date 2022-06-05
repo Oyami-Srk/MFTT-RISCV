@@ -124,7 +124,7 @@ int main() {
 bool        meet   = false;
 const char *skip[] = {"munmap", "mmap", "umount", "mount"};
 
-void test_execve(const char *name) {
+void test_execve(const char *name, int tries) {
     /*
     char *target = "execve";
     if (meet != true) {
@@ -153,6 +153,8 @@ void test_execve(const char *name) {
         int status;
         int pid = wait4(WAIT_ANY, &status, 0);
         printf("PID %d exited with status %d.\n", pid, status);
+        if (status < 0 && tries <= 3)
+            test_execve(name, tries + 1);
     } else {
         printf("!!!!Error while fork.\n");
     }
@@ -204,7 +206,7 @@ int main() {
                                                               3) == 0) {
                                             printf("Shell script.\n");
                                         } else {
-                                            test_execve(line);
+                                            test_execve(line, 0);
                                         }
                                     }
                                 }

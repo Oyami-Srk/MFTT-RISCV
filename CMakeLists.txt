@@ -41,7 +41,7 @@ SET(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 # Enable asm
 ENABLE_LANGUAGE(ASM)
 
-SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -fstack-protector-strong -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage")
+SET(CMAKE_C_FLAGS "-fno-pic -nostdinc -static -fno-builtin -fno-strict-aliasing -g -nostdlib -mcmodel=medany -Wstack-usage=8192 -fstack-usage")
 IF ("${OS_PLATFORM}" STREQUAL "qemu")
     ADD_COMPILE_DEFINITIONS(PLATFORM_QEMU)
 ELSE ()
@@ -68,6 +68,7 @@ INCLUDE_DIRECTORIES(SYSTEM header)
 ADD_EXECUTABLE(kernel.elf ${SRCS})
 TARGET_INCLUDE_DIRECTORIES(kernel.elf SYSTEM PRIVATE "kernel/header")
 SET_TARGET_PROPERTIES(kernel.elf PROPERTIES LINK_FLAGS "-N -T${CMAKE_SOURCE_DIR}/kernel/kernel-${OS_PLATFORM}.ld ")
+TARGET_COMPILE_OPTIONS(kernel.elf PRIVATE -fstack-protector-strong)
 TARGET_LINK_LIBRARIES(kernel.elf init_code)
 ADD_DEPENDENCIES(kernel.elf init_code)
 ADD_CUSTOM_COMMAND(TARGET kernel.elf
@@ -86,6 +87,7 @@ FILE(GLOB_RECURSE ULIB_SRCS "userlib/*.c")
 ADD_LIBRARY(user STATIC ${ULIB_SRCS})
 TARGET_INCLUDE_DIRECTORIES(user PUBLIC "userlib/header")
 TARGET_COMPILE_OPTIONS(user INTERFACE ${USER_PROG_COMPILE_OPTIONS})
+TARGET_COMPILE_OPTIONS(user PUBLIC -fno-stack-protector)
 TARGET_LINK_OPTIONS(user INTERFACE ${USER_PROG_LINK_OPTIONS})
 # End of userlib
 

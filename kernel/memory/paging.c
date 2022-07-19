@@ -66,6 +66,7 @@ int map_pages(pde_t page_dir, void *va, void *pa, uint64_t size, int type,
     a    = (void *)PG_ROUNDDOWN((uint64_t)va);
     last = (void *)PG_ROUNDDOWN((uint64_t)va + size - 1);
     // TODO: large page map
+    // TODO: record pte count in somewhere to free pde after unmap
     for (;;) {
         if ((pte = (pte_st *)walk_pages(page_dir, a, 1)) == NULL)
             return -1;
@@ -189,6 +190,28 @@ pde_t alloc_page_dir() {
                   false, true);
     }
     return pgdir;
+}
+
+static void do_pde_free(pde_t pde, int level) {
+    // pde is 4096/8 = 512
+    for(int i = 0; i < PG_SIZE / sizeof(pte_t); i++) {
+        pte_st *p = (pte_st *)&pde[i];
+        if(level == 3) {
+            if (p->fields.V) {
+                kpanic("Valid leaf existed inside pde");
+            }
+        } else {
+            if((p->raw & 0xF) == 1) { // ignore huge table, huge table is CURRENTLY only for kernel space
+                do_pde_free((pde_t)((uintptr_t)(p->fields.PhyPageNumber << PG_SHIFT)), level+1);
+            }
+        }
+    }
+    // all sub's destoried, free our self
+    page_free((char*)pde, 1);
+}
+
+void dealloc_page_dir(pde_t page_dir) {
+    do_pde_free(page_dir, 0);
 }
 
 int vm_copy(pde_t dst, pde_t src, char *start, char *end) {

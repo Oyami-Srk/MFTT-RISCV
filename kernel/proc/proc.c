@@ -139,6 +139,8 @@ void proc_free(proc_t *proc) {
                 PG_ROUNDUP(proc->stack_bottom - (uintptr_t)proc->stack_top) /
                     PG_SIZE,
                 true);
+    // destory pagedir
+    dealloc_page_dir(pagedir);
 }
 
 // Return current CPU process.

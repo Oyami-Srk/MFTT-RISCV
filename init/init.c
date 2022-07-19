@@ -142,12 +142,15 @@ void test_execve(const char *name) {
     int ret = fork();
     if (ret == 0) {
         // child
+        /*
         const char *argv[] = {name, NULL};
         const char *env[]  = {NULL};
         printf("Try execve %s.\n", name);
         int r = execve(name, (char *const *)argv, (char *const *)env);
         printf("Execve failed: %d.\n", r);
-        exit(r);
+        exit(r); */
+        printf("%s\n", name);
+        exit(10);
     } else if (ret > 0) {
         // parent
         int status;
@@ -159,6 +162,7 @@ void test_execve(const char *name) {
 }
 
 int main() {
+    printf("Hello world.\n");
     char buffer[512];
     //    char dent_buffer[64];
     //    dirent_t *dent = (dirent_t *)dent_buffer;
@@ -185,34 +189,37 @@ int main() {
                         printf("%c: %s\n", dent->d_type, dent->d_name);
                     } */
                     chdir("/mnt");
-                    int sh_fd = openat(AT_FDCWD, "run-all.sh", 0, 0);
+                    int sh_fd = openat(AT_FDCWD, "run-static.sh", 0, 0);
                     if (sh_fd < 0)
-                        printf("Open run-all.sh failed.\n");
+                        printf("Open run-static.sh failed.\n");
                     else {
                         int   bytes = read(sh_fd, buffer, 512);
-                        char  line[32];
-                        char *p = line;
-                        for (int i = 0; i <= bytes; i++) {
-                            if (buffer[i] == '\n') {
-                                *p = '\0';
-                                if (!(line[0] == '#' || line[0] == ' ' ||
-                                      line[0] == '\0')) {
-                                    if (line[0] == '"')
-                                        break;
-                                    if (line[strlen(line) - 1] != '"') {
-                                        if (strcmp(".sh", line + strlen(line) -
-                                                              3) == 0) {
-                                            printf("Shell script.\n");
-                                        } else {
-                                            test_execve(line);
+                        char  line[128];
+                        for(;bytes!=0;bytes=read(sh_fd, buffer, 512)) {
+                            char *p = line;
+                            for (int i = 0; i <= bytes; i++) {
+                                if (buffer[i] == '\n') {
+                                    *p = '\0';
+                                    if (!(line[0] == '#' || line[0] == ' ' ||
+                                          line[0] == '\0')) {
+                                        if (line[0] == '"')
+                                            break;
+                                        if (line[strlen(line) - 1] != '"') {
+                                            if (strcmp(".sh", line +
+                                                                  strlen(line) -
+                                                                  3) == 0) {
+                                                printf("Shell script.\n");
+                                            } else {
+                                                test_execve(line);
+                                            }
                                         }
                                     }
+                                    p = line;
+                                } else if (buffer[i] == '\0') {
+                                    break;
+                                } else {
+                                    *p++ = buffer[i];
                                 }
-                                p = line;
-                            } else if (buffer[i] == '\0') {
-                                break;
-                            } else {
-                                *p++ = buffer[i];
                             }
                         }
                     }
